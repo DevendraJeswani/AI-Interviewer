@@ -796,7 +796,7 @@ function SetupScreen({ onStart }) {
       })
       onStart(data)
     } catch (e) {
-      setError(e.message || 'Could not connect. Is the backend running on port 8000?')
+      setError(e.message || 'Could not connect to the backend. Please try again.')
     } finally { setLoading(false) }
   }
 
