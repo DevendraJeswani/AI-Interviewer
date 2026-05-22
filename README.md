@@ -140,6 +140,37 @@ human_input
 
 ---
 
+## Deployment
+
+The recommended setup is **backend on Railway** and **frontend on Vercel**.
+
+### Backend → Railway
+
+1. Create a new project at [railway.app](https://railway.app) and connect this GitHub repo.
+2. Set the root directory to the repo root (the included `railway.toml` handles the rest).
+3. Add environment variables in the Railway dashboard:
+   - `GEMINI_API_KEY` — your Google Gemini key
+   - `ELEVENLABS_API_KEY` — optional; leave empty to disable voice
+4. After the first deploy, copy the public URL Railway assigns (e.g. `https://ai-interviewer-production.up.railway.app`).
+
+### Frontend → Vercel
+
+1. Import the same repo on [vercel.com](https://vercel.com).
+2. Set **Root Directory** to `frontend`.
+3. Add an environment variable:
+   - `VITE_API_URL` = the Railway backend URL from step 4 above (no trailing slash)
+4. Deploy. Vercel will run `npm run build` automatically.
+
+### Environment variables summary
+
+| Service | Variable | Description |
+|---|---|---|
+| Railway (backend) | `GEMINI_API_KEY` | Google Gemini API key |
+| Railway (backend) | `ELEVENLABS_API_KEY` | ElevenLabs key (optional) |
+| Vercel (frontend) | `VITE_API_URL` | Full URL of the Railway backend |
+
+---
+
 ## License
 
 MIT

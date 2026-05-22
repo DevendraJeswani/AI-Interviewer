@@ -7,7 +7,8 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/session': 'http://localhost:8000',
-      '/health': 'http://localhost:8000',
+      '/health':  'http://localhost:8000',
+      '/voice':   'http://localhost:8000',
     }
   }
 })

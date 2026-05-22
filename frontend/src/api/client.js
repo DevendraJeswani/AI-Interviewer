@@ -1,4 +1,5 @@
-const BASE = '/session'
+const API_BASE = import.meta.env.VITE_API_URL || ''
+const BASE = `${API_BASE}/session`
 
 async function request(path, options = {}) {
   const res = await fetch(path, {
@@ -22,5 +23,5 @@ export const api = {
   getReport: (session_id) =>
     request(`${BASE}/report?session_id=${session_id}`),
 
-  health: () => fetch('/health').then(r => r.json()),
+  health: () => fetch(`${API_BASE}/health`).then(r => r.json()),
 }
