@@ -1,0 +1,60 @@
+# ── Python ──────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+.mypy_cache/
+.dmypy.json
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+*.pyo
+
+# ── Virtual environments ────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+.env.bak
+
+# ── Environment / secrets ───────────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# ── Node / Frontend ─────────────────────────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/vite.log
+*.tsbuildinfo
+
+# ── Logs ────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── OS / editor ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── Claude / tooling ────────────────────────────────────────────────────────
+.claude/
+
+# ── Test artefacts ──────────────────────────────────────────────────────────
+backend/test_*.py
+backend/scratch/
+
+# ── Windows batch launchers (local only) ────────────────────────────────────
+*.bat
