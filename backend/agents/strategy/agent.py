@@ -153,4 +153,5 @@ def _build_prompt(
         last_question=state.current_question,
         last_answer=state.current_answer,
         recent_history=recent_history,
+        interview_mode=getattr(ctx, "interview_mode", "normal"),
     )

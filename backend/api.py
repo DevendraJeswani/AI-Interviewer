@@ -50,6 +50,7 @@ class StartRequest(BaseModel):
     interviewer_seniority: str = "director"
     interviewer_yoe: int = 15
     interviewer_style: str = "Curious and direct. Focuses on reasoning behind decisions, not just outcomes. Asks one question at a time."
+    interview_mode: str = "normal"  # "normal" | "grill"
 
 
 class StartResponse(BaseModel):
@@ -108,13 +109,22 @@ async def start_session(req: StartRequest):
         )
 
     session_id = str(uuid.uuid4())
+
+    # Grill Mode enforces a minimum of 10 turns for a genuinely long interview
+    interview_mode = req.interview_mode if req.interview_mode in ("normal", "grill") else "normal"
+    effective_turns = req.target_turns
+    if interview_mode == "grill":
+        effective_turns = max(effective_turns, 10)
+    # Hard cap for the model field (le=14)
+    effective_turns = min(effective_turns, 14)
+
     context = ImmutableContext(
         session_id=session_id,
         role=req.role,
         focus_area=req.focus_area,
         candidate_background=req.candidate_background,
         difficulty_target=difficulty,
-        target_turn_count=req.target_turns,
+        target_turn_count=effective_turns,
         topic_list=req.topics,
         persona_card=PersonaCard(
             role=req.interviewer_role,
@@ -123,6 +133,7 @@ async def start_session(req: StartRequest):
             domain=req.focus_area,
             style=req.interviewer_style
         ),
+        interview_mode=interview_mode,
     )
 
     try:

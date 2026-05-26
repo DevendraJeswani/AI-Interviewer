@@ -473,6 +473,72 @@ textarea.inp { resize: vertical; min-height: 60px; }
 .wave-bar:nth-child(5) { height: 8px; animation-delay: 0.05s; }
 @keyframes wave { 0%,100%{transform:scaleY(0.4)} 50%{transform:scaleY(1)} }
 
+/* Grill Mode badge */
+.grill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(248,113,113,0.15);
+  border: 1px solid rgba(248,113,113,0.35);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--red);
+  text-transform: uppercase;
+}
+.grill-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--red);
+  box-shadow: 0 0 6px var(--red);
+  animation: pulse-grill 1.8s ease-in-out infinite;
+}
+@keyframes pulse-grill {
+  0%,100% { opacity: 1; } 50% { opacity: 0.4; }
+}
+
+/* Mode selector pills in setup */
+.mode-pills { display: flex; gap: 8px; margin-top: 0.4rem; }
+.mode-pill {
+  flex: 1;
+  padding: 0.7rem 1rem;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
+  background: var(--bg2);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s;
+  user-select: none;
+}
+.mode-pill:hover { border-color: var(--border2); }
+.mode-pill.active-normal {
+  border-color: var(--accent);
+  background: rgba(124,106,247,0.1);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+.mode-pill.active-grill {
+  border-color: var(--red);
+  background: rgba(248,113,113,0.1);
+  box-shadow: 0 0 12px rgba(248,113,113,0.2);
+}
+.mpname {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text);
+  display: block;
+  margin-bottom: 3px;
+}
+.mpdesc {
+  font-size: 0.7rem;
+  color: var(--text3);
+  font-family: var(--mono);
+  line-height: 1.4;
+}
+
 /* ── REPORT ── */
 .report { min-height: 100vh; background: var(--bg); }
 
@@ -608,6 +674,36 @@ textarea.inp { resize: vertical; min-height: 60px; }
 .tq { padding: 0.55rem 0.9rem; background: var(--surface2); font-size: 0.73rem; color: var(--text2); border-bottom: 1px solid var(--border); font-family: var(--mono); }
 .tqlbl { color: var(--text3); margin-right: 5px; }
 .ta { padding: 0.7rem 0.9rem; font-size: 0.83rem; line-height: 1.65; color: var(--text); }
+
+/* Overall score hero */
+.score-hero {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  margin: 0.6rem 0 1.1rem;
+}
+.score-hero-num {
+  font-family: var(--serif);
+  font-size: 3.6rem;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.score-hero-denom {
+  font-family: var(--mono);
+  font-size: 1.1rem;
+  color: var(--text3);
+  font-weight: 400;
+  padding-bottom: 0.25rem;
+}
+.score-hero-lbl {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 0.35rem;
+}
 
 /* Loading */
 .loading { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; background: var(--bg); }
@@ -759,6 +855,7 @@ function SetupScreen({ onStart }) {
   const [interviewerSeniority, setInterviewerSeniority] = useState('director')
   const [interviewerYoe, setInterviewerYoe] = useState(15)
   const [interviewerStyle, setInterviewerStyle] = useState('Curious and direct. Focuses on reasoning behind decisions, not just outcomes.')
+  const [interviewMode, setInterviewMode] = useState('normal')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
@@ -788,13 +885,15 @@ function SetupScreen({ onStart }) {
       const data = await api.startSession({
         role, focus_area: focusArea,
         candidate_background: background,
-        difficulty, topics: [...topics], target_turns: 6,
+        difficulty, topics: [...topics],
+        target_turns: interviewMode === 'grill' ? 10 : 6,
         interviewer_role: interviewerRole,
         interviewer_seniority: interviewerSeniority,
         interviewer_yoe: Number(interviewerYoe),
         interviewer_style: interviewerStyle,
+        interview_mode: interviewMode,
       })
-      onStart(data)
+      onStart({ ...data, interview_mode: interviewMode })
     } catch (e) {
       setError(e.message || 'Could not connect to the backend. Please try again.')
     } finally { setLoading(false) }
@@ -887,8 +986,32 @@ function SetupScreen({ onStart }) {
             </div>
           </div>
 
-          <button className="btn-primary" onClick={handleStart} disabled={loading || topics.size === 0}>
-            {loading ? 'Starting interview…' : 'Begin interview →'}
+          <div className="fg" style={{marginTop: '1.25rem'}}>
+            <label className="lbl">Interview mode</label>
+            <div className="mode-pills">
+              <div
+                className={`mode-pill ${interviewMode === 'normal' ? 'active-normal' : ''}`}
+                onClick={() => setInterviewMode('normal')}
+              >
+                <span className="mpname">Normal</span>
+                <span className="mpdesc">conversational · ~6 questions</span>
+              </div>
+              <div
+                className={`mode-pill ${interviewMode === 'grill' ? 'active-grill' : ''}`}
+                onClick={() => setInterviewMode('grill')}
+              >
+                <span className="mpname" style={interviewMode === 'grill' ? {color: 'var(--red)'} : {}}>
+                  🔥 Grill Mode
+                </span>
+                <span className="mpdesc">high pressure · ~10–12 questions</span>
+              </div>
+            </div>
+          </div>
+
+          <button className="btn-primary" onClick={handleStart} disabled={loading || topics.size === 0}
+            style={interviewMode === 'grill' ? {background: 'var(--red)', boxShadow: '0 0 20px rgba(248,113,113,0.3)'} : {}}
+          >
+            {loading ? 'Starting interview…' : interviewMode === 'grill' ? 'Start Grill Mode →' : 'Begin interview →'}
           </button>
         </div>
       </div>
@@ -899,7 +1022,7 @@ function SetupScreen({ onStart }) {
 /* ─────────────────────────────────────────────────────────────────────────
    INTERVIEW SCREEN
 ───────────────────────────────────────────────────────────────────────── */
-function InterviewScreen({ sessionId, firstQuestion, topic, phase: initPhase, role, onComplete }) {
+function InterviewScreen({ sessionId, firstQuestion, topic, phase: initPhase, role, interviewMode, onComplete }) {
   const [messages, setMessages] = useState([{ role: 'ai', content: firstQuestion }])
   const [loading, setLoading] = useState(false)
   const [topic_, setTopic] = useState(topic)
@@ -977,6 +1100,12 @@ function InterviewScreen({ sessionId, firstQuestion, topic, phase: initPhase, ro
           </div>
         </div>
         <div className="badges">
+          {interviewMode === 'grill' && (
+            <div className="grill-badge">
+              <div className="grill-dot" />
+              Grill Mode
+            </div>
+          )}
           {isSpeaking && (
             <div className="speaking-badge">
               <div className="speaking-bars">
@@ -1201,6 +1330,9 @@ function ReportScreen({ sessionId, onRestart }) {
   const traj = ss.trajectory || 'insufficient_data'
   const turns = report._turns || []
 
+  const scoreColor = (s) =>
+    s >= 7.5 ? 'var(--green)' : s >= 5.5 ? 'var(--amber)' : 'var(--red)'
+
   return (
     <div className="report">
       <div className="rbar">
@@ -1215,6 +1347,17 @@ function ReportScreen({ sessionId, onRestart }) {
         <div className="rmain">
           <div className="rcrd">
             <div className="slbl">Overall assessment</div>
+            {report.overall_score != null && (
+              <div>
+                <div className="score-hero-lbl">Overall score</div>
+                <div className="score-hero">
+                  <span className="score-hero-num" style={{ color: scoreColor(report.overall_score) }}>
+                    {report.overall_score.toFixed(1)}
+                  </span>
+                  <span className="score-hero-denom">/ 10</span>
+                </div>
+              </div>
+            )}
             <p className="summary">{report.overall_summary}</p>
             <div className={`traj tj-${traj}`}>
               {traj === 'improving' ? '↑ improving' : traj === 'declining' ? '↓ declining' : traj === 'stable' ? '→ stable' : '~ early data'}
@@ -1255,7 +1398,12 @@ function ReportScreen({ sessionId, onRestart }) {
             <div className="slbl">Performance scores</div>
             <div className="slist">
               {Object.entries(SCORE_META).map(([k, m]) => (
-                <ScoreBar key={k} label={m.label} score={scores[k] || 0} color={m.color} />
+                <ScoreBar
+                  key={k}
+                  label={report.dimension_labels?.[k] || m.label}
+                  score={scores[k] || 0}
+                  color={m.color}
+                />
               ))}
             </div>
           </div>
@@ -1266,13 +1414,13 @@ function ReportScreen({ sessionId, onRestart }) {
                 <div className="smc">
                   <div className="sml">Strongest</div>
                   <div className="smv" style={{ color: 'var(--green)', fontSize: '.82rem' }}>
-                    {SCORE_META[ss.strongest_dimension]?.label || ss.strongest_dimension}
+                    {ss.strongest_dimension}
                   </div>
                 </div>
                 <div className="smc">
                   <div className="sml">Needs work</div>
                   <div className="smv" style={{ color: 'var(--red)', fontSize: '.82rem' }}>
-                    {SCORE_META[ss.weakest_dimension]?.label || ss.weakest_dimension}
+                    {ss.weakest_dimension}
                   </div>
                 </div>
               </div>
@@ -1341,6 +1489,7 @@ export default function App() {
           topic={session.topic}
           phase={session.phase}
           role={session.role || 'Interview'}
+          interviewMode={session.interview_mode || 'normal'}
           onComplete={onComplete}
         />
       )}

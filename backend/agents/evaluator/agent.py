@@ -29,9 +29,74 @@ def _get_client():
 HISTORY_WINDOW = 3
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Special-input detection (mirrors logic in interviewer/agent.py)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _is_feedback_request(text: str) -> bool:
+    t = text.strip().lower()
+    patterns = [
+        "can i get feedback", "can you give me feedback", "could i get feedback",
+        "i'd like feedback", "i would like feedback", "give me feedback",
+        "any feedback", "what feedback do you have",
+        "how did i do", "how am i doing", "how did i perform",
+        "can i get a review", "can i get a report", "can you give me a report",
+        "can i see my report", "generate the report", "generate a report",
+        "what are my results", "can we wrap up", "can we end the interview",
+        "i want to end", "let's end", "let's wrap up",
+    ]
+    return any(p in t for p in patterns)
+
+
+def _is_candidate_question(text: str) -> bool:
+    stripped = text.strip()
+    t = stripped.lower()
+    if not stripped.endswith("?"):
+        return False
+    if len(stripped.split()) > 60:
+        return False
+    patterns = [
+        "what does success look like", "what would my day look like",
+        "what does a typical day", "what are the team challenges",
+        "what is the culture like", "what's the culture like",
+        "how does the team work", "what are the challenges on the team",
+        "what do you enjoy about", "what's it like to work",
+        "what is it like to work", "how do you see the role",
+        "what would you say the role", "can you tell me about the team",
+        "what is the role like", "what does the role involve",
+        "how would you describe the role", "what are you looking for in a candidate",
+        "what makes a great", "what does good look like in this role",
+        "what are the growth opportunities", "how long have you been",
+        "what brought you to", "why did you join", "how big is the team",
+        "who would i be working with", "what tools do you use",
+        "what's the tech stack", "what is the tech stack",
+        "what does the interview process look like", "what are the next steps",
+    ]
+    return any(p in t for p in patterns)
+
+
 def evaluate(state: InterviewState) -> tuple[EvaluatorOutput, bool]:
     turn_index = len(state.turns)
     is_warm_up = (turn_index == 0)
+    answer = state.current_answer or ""
+
+    # ── Special input: feedback request ───────────────────────────────────────
+    # Return neutral output with a signal so strategy can wrap_up immediately.
+    if _is_feedback_request(answer):
+        logger.info(f"[Evaluator] Turn {turn_index} — feedback request detected, returning neutral output")
+        neutral = fallback_evaluator_output(turn_index, is_warm_up)
+        neutral.follow_up_signals = ["CANDIDATE_FEEDBACK_REQUEST"]
+        neutral.reasoning = "Candidate explicitly requested feedback/report. No substantive answer to evaluate."
+        return neutral, True
+
+    # ── Special input: candidate asked interviewer a question ─────────────────
+    # Return neutral output with a signal so strategy can handle gracefully.
+    if _is_candidate_question(answer):
+        logger.info(f"[Evaluator] Turn {turn_index} — candidate question detected, returning neutral output")
+        neutral = fallback_evaluator_output(turn_index, is_warm_up)
+        neutral.follow_up_signals = ["CANDIDATE_QUESTION"]
+        neutral.reasoning = "Candidate asked the interviewer a question rather than answering. No substantive answer to evaluate."
+        return neutral, True
 
     recent_history = _build_history_window(state.turns)
     prior_topic_scores = _build_prior_topic_scores(state.turns, state.current_topic)
@@ -49,6 +114,7 @@ def evaluate(state: InterviewState) -> tuple[EvaluatorOutput, bool]:
         answer=state.current_answer,
         recent_history=recent_history,
         prior_topic_scores=prior_topic_scores,
+        interview_mode=getattr(state.context, "interview_mode", "normal"),
     )
 
     logger.info(f"[Evaluator] Turn {turn_index} | topic={state.current_topic}")

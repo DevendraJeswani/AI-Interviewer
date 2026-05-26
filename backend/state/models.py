@@ -29,10 +29,11 @@ class ImmutableContext(BaseModel, frozen=True):
     focus_area: str
     candidate_background: str
     difficulty_target: DifficultyLevel
-    target_turn_count: int = Field(default=6, ge=4, le=12)
+    target_turn_count: int = Field(default=6, ge=4, le=14)
     warm_up_score_weight: float = Field(default=0.3, ge=0.0, le=1.0)
     topic_list: list[str]
     persona_card: PersonaCard
+    interview_mode: str = "normal"  # "normal" | "grill"
 
 
 class EvaluatorScores(BaseModel):

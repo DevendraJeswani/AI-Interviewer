@@ -26,6 +26,22 @@ SIGNALS TO DETECT IN THE CANDIDATE'S ANSWER:
 - Assumptions embedded in their answer → surface and test the assumption explicitly
 
 ════════════════════════════════════
+SPECIAL SIGNAL HANDLING (check FIRST, before any other rules)
+════════════════════════════════════
+If follow_up_signals contains "CANDIDATE_FEEDBACK_REQUEST":
+  → next_action = wrap_up, interview_phase = closing
+  → reasoning = "Candidate explicitly requested feedback/report. Wrapping up to generate report."
+  → Return immediately — do not apply any other rules.
+
+If follow_up_signals contains "CANDIDATE_QUESTION":
+  → The candidate asked YOU a question rather than answering.
+  → next_action = follow_up, follow_up_intent = none
+  → interview_phase = questioning, difficulty_adjustment = hold
+  → target_topic = current topic
+  → reasoning = "Candidate asked the interviewer a question. Interviewer will answer it and then continue with the interview on this topic."
+  → Return immediately — do not apply any other rules.
+
+════════════════════════════════════
 ACTIONS AND WHEN TO USE THEM
 ════════════════════════════════════
 - probe: Drill deeper on the SAME topic using a specific signal from the answer.
@@ -118,6 +134,7 @@ def build_strategy_user_prompt(
     evaluator_flags: dict, evaluator_scores: dict, follow_up_signals: list[str],
     evaluation_confidence: str, cross_turn_summary: str, score_trajectory: str,
     last_question: str, last_answer: str, recent_history: list[dict],
+    interview_mode: str = "normal",
 ) -> str:
     turns_left = target_turn_count - turn_count
     coverage_str = "\n".join(
@@ -128,16 +145,66 @@ def build_strategy_user_prompt(
     flags_active = [k for k, v in evaluator_flags.items() if v]
     scores_str = "\n".join(f"  {k}: {v}/5" for k, v in evaluator_scores.items())
     signals_str = "\n".join(f"  - {s}" for s in follow_up_signals) if follow_up_signals else "  (none detected)"
+
+    # ── Special signal alerts — must be checked before anything else ──────────
+    special_alert = ""
+    if "CANDIDATE_FEEDBACK_REQUEST" in (follow_up_signals or []):
+        special_alert = (
+            "\n⚡ SPECIAL SIGNAL: CANDIDATE_FEEDBACK_REQUEST\n"
+            "→ Return wrap_up IMMEDIATELY. Set interview_phase=closing.\n"
+            "→ reasoning = 'Candidate explicitly requested feedback/report. Wrapping up to generate report.'\n"
+            "→ Ignore all other rules below.\n"
+        )
+    elif "CANDIDATE_QUESTION" in (follow_up_signals or []):
+        special_alert = (
+            "\n⚡ SPECIAL SIGNAL: CANDIDATE_QUESTION\n"
+            "→ The candidate asked you a question rather than answering. Return follow_up.\n"
+            "→ follow_up_intent=none, difficulty_adjustment=hold, target_topic=current topic.\n"
+            "→ reasoning = 'Candidate asked the interviewer a question. Interviewer will answer it and continue.'\n"
+            "→ Ignore all other rules below.\n"
+        )
     consecutive_on_current = consecutive_actions_on_topic.get(current_topic, 0)
+
+    # Grill Mode context block
+    grill_block = ""
+    if interview_mode == "grill":
+        td = evaluator_scores.get("technical_depth", 3)
+        gr = evaluator_scores.get("groundedness", 3)
+        grill_block = f"""
+══ GRILL MODE — ACTIVE ═════════════════════════════════════════════
+Target: {target_turn_count} questions. Do NOT wrap_up early unless candidate is consistently
+performing poorly (technical_depth ≤ 2 in 3+ consecutive turns with no recovery).
+
+STRONG answer (depth ≥ 4, grnd ≥ 4):
+→ Use probe or challenge. Push on assumptions, failure modes, second-order effects.
+→ Increase difficulty. Continue for the full target turn count.
+
+AVERAGE answer (depth=3, grnd=3):
+→ Use probe or follow_up. Ask for explicit reasoning behind every claim.
+→ Do NOT pivot too quickly — probe the current topic 2-3 turns before moving on.
+→ Use challenge if candidate makes a specific claim worth stress-testing.
+
+WEAK answer (depth ≤ 2 OR grnd ≤ 2):
+→ follow_up with simpler_reframe OR recover to give candidate a chance to improve.
+→ If 3+ consecutive weak turns with no improvement: wrap_up.
+→ Do NOT use probe or challenge on weak answers.
+
+Current signals: depth={td}/5, grnd={gr}/5
+"""
 
     # Urgency alerts
     urgency = ""
     if turns_left <= 1:
         urgency = f"\n⚠ FINAL TURN: Must wrap_up now.\n"
     elif turns_left <= 2 and topics_remaining:
-        urgency = f"\n⚠ PACING ALERT: {turns_left} turn(s) left, {len(topics_remaining)} unvisited topics. Strongly prefer PIVOT or wrap_up.\n"
+        # In grill mode, don't raise urgency until very last turns
+        if interview_mode != "grill" or turns_left <= 1:
+            urgency = f"\n⚠ PACING ALERT: {turns_left} turn(s) left, {len(topics_remaining)} unvisited topics. Strongly prefer PIVOT or wrap_up.\n"
     elif coverage_breadth_pct < 40 and turn_count >= target_turn_count // 2:
-        urgency = f"\n⚠ COVERAGE ALERT: Only {coverage_breadth_pct:.0f}% breadth at turn {turn_count}. Bias toward PIVOT.\n"
+        # In grill mode, depth over breadth — only alert if coverage is very low
+        breadth_threshold = 30 if interview_mode == "grill" else 40
+        if coverage_breadth_pct < breadth_threshold:
+            urgency = f"\n⚠ COVERAGE ALERT: Only {coverage_breadth_pct:.0f}% breadth at turn {turn_count}. Bias toward PIVOT.\n"
 
     # Persona-driven depth preference
     persona_context = ""
@@ -193,8 +260,8 @@ def build_strategy_user_prompt(
         covered_angles_str = "  (none yet)"
 
     return f"""\
-══ INTERVIEW CONTEXT ══════════════════════════════════════
-Role: {role} | Focus: {focus_area}
+{special_alert}{grill_block}══ INTERVIEW CONTEXT ══════════════════════════════════════
+Role: {role} | Focus: {focus_area} | Mode: {interview_mode.upper()}
 Target difficulty: {difficulty_target} | Current difficulty: {current_difficulty}
 Phase: {current_phase} | Topic: {current_topic}
 Turn: {turn_count}/{target_turn_count} ({turns_left} remaining)

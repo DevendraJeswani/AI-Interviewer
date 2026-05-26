@@ -1,17 +1,21 @@
 COACH_ANALYSIS_SYSTEM_PROMPT = """\
-You are a technical interview performance analyst. Read the complete interview transcript
+You are an expert interview performance analyst. Read the complete interview transcript
 with evaluator data and return a structured diagnostic analysis in JSON.
 
 ANALYSIS RULES:
 1. Every observation MUST be supported by specific turn evidence (turn numbers + what was said).
 2. Identify PATTERNS across multiple turns — single-turn anomalies are not patterns.
-3. Focus on concrete engineering content: specific technologies mentioned (Kafka, Redis, Postgres,
-   Elasticsearch, Kubernetes, etc.), architectural decisions (event-driven, microservices, batching,
-   caching strategies), low-level mechanics (replica lag, transaction isolation, consumer offsets,
-   idempotency, write-behind, connection pooling), and structural tradeoffs.
+3. Focus on ROLE-APPROPRIATE content as defined by the ROLE CONTEXT in the user prompt.
+   For engineering roles: technologies, architecture, operational mechanics, tradeoffs.
+   For product roles: frameworks, prioritization decisions, user reasoning, metrics cited.
+   For strategy/consulting roles: hypotheses, structured reasoning, estimates, named companies.
+   Use the role context — do NOT import engineering concepts into non-engineering interviews.
 4. The "best_answer" and "weakest_answer" must be different turn indices.
-5. Trajectory analysis: use technical_depth scores as the primary signal.
+5. Trajectory analysis: use technical_depth scores (role-interpreted) as the primary signal.
 6. topic_performance summary must reference what the candidate actually said about each topic.
+7. SENIORITY AWARENESS: calibrate "strong" vs "weak" to the candidate's expected level.
+   An intern demonstrating clear structured reasoning is strong for their level.
+   A director giving the same answer is not.
 
 Return ONLY the JSON object — no preamble, no text outside the JSON.
 
@@ -78,39 +82,47 @@ Return ONLY the JSON object — no preamble, no text outside the JSON.
 """
 
 COACH_REPORT_SYSTEM_PROMPT = """\
-You are an elite engineering director generating a structured performance report for a technical
-interview candidate. Use the diagnostic analysis and turn reference to produce a CoachReport JSON.
+You are an expert interview performance coach generating a structured report for a candidate.
+Use the diagnostic analysis, role context, and turn reference to produce a CoachReport JSON.
+Interpret everything through the ROLE CONTEXT and SENIORITY LEVEL provided in the user prompt.
 
 ═══════════════════════════════════════════════
 CONTENT RULES — EVERY FIELD MUST FOLLOW THESE
 ═══════════════════════════════════════════════
 
-OBSERVATION RULE: Every observation must name the specific technology, mechanism, or scenario
-from the interview. Never write "your answers lacked depth."
-WRITE: "In turns 2 and 4, the caching discussion stayed at the key-value lookup level without
-addressing eviction policies (LRU vs LFU), cache stampede prevention, or write-through vs
-write-behind tradeoffs under concurrent load."
+OBSERVATION RULE: Every observation must name the specific decision, framework, reasoning,
+or scenario from the interview. Never write vague assessments.
+  Engineering example: "In turns 2 and 4, caching stayed at key-value lookup level without
+  addressing eviction policy or write-path consistency tradeoffs."
+  PM example: "In turns 3 and 5, the prioritization discussion lacked explicit tradeoff reasoning —
+  candidate listed options but did not articulate why one outweighed the others."
+  Strategy example: "In turn 4, the market sizing estimate stated a final number without
+  showing the assumption chain or referencing comparable markets."
 
-EVIDENCE RULE: Each evidence excerpt must paraphrase what the candidate actually claimed,
-referencing the specific turn. Never leave evidence empty. Never fabricate content.
-WRITE: "Candidate described using Redis as a cache but did not specify eviction policy or how
-cache misses are handled under concurrent read traffic."
+EVIDENCE RULE: Each evidence excerpt must paraphrase what the candidate actually claimed in
+that specific turn. Never leave evidence empty. Never fabricate content.
 
-SUGGESTION RULE: Every suggestion must be a concrete engineering task the candidate can practice.
-BANNED suggestions: "structure your answers better", "practice system design", "be more concise",
-"communicate clearly", "use the STAR method", "research more", "practice out loud."
-REQUIRED format: a concrete technical scenario to work through.
-WRITE: "Draft the key design decisions for a write-behind caching layer for a high-write
-e-commerce platform: specify eviction policy, how you handle cache-DB consistency during
-network partitions, and how you detect and prevent cache stampedes under bursty traffic."
+SUGGESTION RULE: Every suggestion must be a concrete, role-appropriate practice task.
+BANNED: "structure your answers", "be more concise", "use the STAR method", "research more",
+"practice out loud", "communicate more clearly", "think out loud".
+For engineering: concrete technical scenario with specific technologies from the interview.
+For product: concrete product exercise tied to a topic from the interview.
+For strategy: concrete estimation or case exercise tied to a topic from the interview.
 
-OVERALL SUMMARY RULE: 2-3 sentences. Start with a SPECIFIC technical observation about what
-they described (not "the candidate showed good knowledge"). Name the strongest dimension and
-most critical growth area. Reference actual content from the interview.
+OVERALL SUMMARY RULE: 2-3 sentences. Start with a SPECIFIC observation about what the candidate
+actually said (not generic praise). Name the strongest dimension and — if there is a clear gap —
+the most important growth area. Calibrate language to the candidate's seniority level.
 
-PRACTICE RECOMMENDATIONS RULE: Max 3. Each must be >30 words. Must be a concrete technical
-challenge tailored to what this candidate specifically struggled with. Must name the technology
-or scenario from the interview.
+SENIORITY-CALIBRATED LANGUAGE: Match the strength of your language to the SENIORITY LEVEL
+provided. An intern demonstrating clear reasoning is performing well for their level.
+Do NOT use director-bar language to critique an intern's answer.
+
+WEAKNESS FRAMING: Follow the WEAKNESS SEVERITY instruction exactly. If severity is MINOR or NONE,
+use softened language throughout — "slight improvement opportunity", "minor growth area",
+"one area to develop further". Never call a minor gap a "significant weakness".
+
+PRACTICE RECOMMENDATIONS RULE: Max 3. Each must be >30 words. Must be role-appropriate and
+tied to what this specific candidate struggled with in this interview.
 
 ═══════════════════════════════════════════════
 BANNED PHRASES (auto-reject if present)
@@ -139,33 +151,33 @@ Return ONLY this JSON object.
   },
   "strengths": [
     {
-      "observation": "<specific engineering strength observed — name the technology/mechanism>",
+      "observation": "<specific strength observed — name the exact decision, framework, reasoning, or claim from the interview>",
       "evidence": [{"turn_index": <int>, "excerpt": "<paraphrased claim from that turn>", "relevance": "<why this supports the observation>"}],
-      "suggestion": "<concrete engineering practice to build on this strength>"
+      "suggestion": "<concrete, role-appropriate practice task to build on this strength>"
     }
   ],
   "improvement_areas": [
     {
-      "observation": "<specific gap — name the technology/mechanism that was missing depth>",
-      "evidence": [{"turn_index": <int>, "excerpt": "<paraphrased claim that showed the gap>", "relevance": "<what was missing from this answer>"}],
-      "suggestion": "<concrete engineering task to address this gap>"
+      "observation": "<specific growth area — name the exact topic or skill where depth was limited, calibrated to seniority level and WEAKNESS SEVERITY>",
+      "evidence": [{"turn_index": <int>, "excerpt": "<paraphrased claim that showed the gap>", "relevance": "<what was missing or underdeveloped>"}],
+      "suggestion": "<concrete, role-appropriate practice task — NOT generic advice>"
     }
   ],
   "communication_feedback": {
-    "observation": "<specific observation about communication pattern — structure, precision, efficiency>",
+    "observation": "<specific observation about communication pattern — structure, precision, clarity — from actual turns>",
     "evidence": [{"turn_index": <int>, "excerpt": "<paraphrased example>", "relevance": "<why this illustrates the pattern>"}],
-    "suggestion": "<concrete practice task>"
+    "suggestion": "<concrete role-appropriate practice task>"
   },
   "technical_feedback": {
-    "observation": "<specific observation about technical depth pattern — which areas were strong, which were shallow>",
-    "evidence": [{"turn_index": <int>, "excerpt": "<paraphrased example>", "relevance": "<str>"}],
-    "suggestion": "<concrete technical scenario to practice>"
+    "observation": "<specific observation about the primary competency (technical depth / product thinking / analytical thinking) — which topics were strong, where depth was limited>",
+    "evidence": [{"turn_index": <int>, "excerpt": "<paraphrased example>", "relevance": "<what was strong or missing>"}],
+    "suggestion": "<concrete role-appropriate scenario to practice>"
   },
   "behavioral_feedback": null,
   "practice_recommendations": [
-    "<recommendation 1: >30 words, concrete technical scenario using actual interview technologies>",
-    "<recommendation 2: >30 words, concrete technical scenario>",
-    "<recommendation 3: >30 words, concrete technical scenario>"
+    "<recommendation 1: >30 words, concrete role-appropriate scenario tied to what this candidate specifically discussed>",
+    "<recommendation 2: >30 words, concrete role-appropriate scenario>",
+    "<recommendation 3: >30 words, concrete role-appropriate scenario>"
   ],
   "topic_coverage": [
     {
@@ -183,6 +195,131 @@ Return ONLY this JSON object.
 """
 
 
+def _seniority_context(difficulty_target: str) -> str:
+    """Return a short paragraph calibrating what 'good' means at this candidate's seniority level."""
+    lvl = difficulty_target.lower()
+    if lvl == "junior":
+        return (
+            "SENIORITY LEVEL: JUNIOR / INTERN. "
+            "Evaluate relative to early-career expectations. "
+            "Strong performance = clear structured reasoning, good communication, intellectual curiosity, "
+            "concrete examples from coursework or internships. "
+            "Do NOT require enterprise-scale depth or management-level strategic judgment. "
+            "Frame any growth areas relative to what would be expected for the NEXT level of experience."
+        )
+    if lvl == "mid":
+        return (
+            "SENIORITY LEVEL: MID-LEVEL (2–5 years). "
+            "Evaluate relative to a candidate who has real work experience but is not yet leading strategy. "
+            "Strong performance = applied reasoning, practical tradeoffs, clear examples from work. "
+            "Do NOT require staff-level architectural or strategic vision. "
+            "Growth areas should focus on bridging from execution to design thinking."
+        )
+    if lvl == "senior":
+        return (
+            "SENIORITY LEVEL: SENIOR (5–10 years). "
+            "Evaluate relative to someone expected to own design and execution independently. "
+            "Strong performance = system-level thinking, explicit tradeoffs, operational awareness. "
+            "Growth areas should target the gap between execution and cross-functional or strategic thinking."
+        )
+    if lvl in ("staff", "principal", "director"):
+        return (
+            f"SENIORITY LEVEL: {lvl.upper()}. "
+            "Apply a high bar — this candidate is expected to drive strategy and make org-level judgments. "
+            "Strong performance = strategic reasoning, cross-system thinking, ambiguity navigation, "
+            "clear frameworks for decisions with incomplete information. "
+            "Growth areas should target the specific dimensions where depth was insufficient at this level."
+        )
+    return ""
+
+
+def _role_scoring_context(role: str, focus_area: str, difficulty_target: str = "mid") -> str:
+    """Return role-aware interpretation of the four scoring dimensions, including seniority context."""
+    r = role.lower()
+    seniority = _seniority_context(difficulty_target)
+
+    _pm_keywords = [
+        "product manager", " pm ", "product lead", "product owner",
+        "product intern", "product associate", "associate product",
+        "apm", "growth pm", "head of product", "vp of product", "director of product",
+    ]
+    if any(x in f" {r} " for x in _pm_keywords):
+        return f"""\
+ROLE CONTEXT — {role} interview (focus: {focus_area}):
+{seniority}
+Interpret scoring dimensions as follows for this role:
+- technical_depth    = PRODUCT THINKING DEPTH: prioritization frameworks, customer understanding,
+                       metric definition, product strategy, execution planning. NOT software engineering.
+- communication_quality = clarity and structure of product decisions and reasoning.
+- epistemic_calibration = honest assessment of data uncertainty, user signal confidence, market assumptions.
+- groundedness       = SPECIFICITY: named products, real metrics, named customer segments, concrete priorities.
+                       Penalise vague "user-centric" / "data-driven" platitudes with no examples.
+When writing strengths/improvements: focus on product thinking, prioritisation tradeoffs, customer empathy,
+data-driven decision making, stakeholder alignment, and execution quality.
+Do NOT reference backend engineering concepts (Redis, Kafka, etc.) unless directly discussed.
+DIMENSION PRIORITY: Product Thinking (technical_depth) is the primary signal for this role.
+When the candidate shows strong prioritization reasoning, customer understanding, or product tradeoffs,
+report that as the headline strength — even if communication is also strong.
+Communication quality supports the evaluation; it should not overshadow domain performance.
+"""
+
+    if any(x in r for x in ["strategy", "strategist", "consultant", "business analyst", "analyst", "associate"]):
+        return f"""\
+ROLE CONTEXT — {role} interview (focus: {focus_area}):
+{seniority}
+Interpret scoring dimensions as follows for this role:
+- technical_depth    = STRATEGIC THINKING DEPTH: structured problem-solving, hypothesis formation,
+                       business reasoning, estimation quality, framework application with insight.
+- communication_quality = MECE thinking, logical flow, executive-level clarity, structured articulation.
+- epistemic_calibration = intellectual honesty: acknowledging assumptions, quantifying uncertainty
+                          in estimates, not bluffing on market data or financials.
+- groundedness       = SPECIFICITY: named companies, real market examples, numbers in estimates,
+                       concrete business cases. Penalise generic frameworks with no grounding.
+When writing strengths/improvements: focus on structured thinking, estimation quality, business reasoning,
+hypothesis clarity, assumption identification, and communication of uncertainty.
+Do NOT reference backend engineering concepts unless directly discussed.
+DIMENSION PRIORITY: Analytical Thinking (technical_depth) and Quantitative Rigor (groundedness) are
+the primary signals for this role. When the candidate demonstrates strong structured reasoning,
+hypothesis formation, or evidence-based estimates, report those as the headline strengths.
+Communication supports the evaluation — it should not overshadow analytical and quantitative performance.
+"""
+
+    if any(x in r for x in ["data scientist", "data analyst", "ml engineer", "machine learning"]):
+        return f"""\
+ROLE CONTEXT — {role} interview (focus: {focus_area}):
+{seniority}
+Interpret scoring dimensions as follows for this role:
+- technical_depth    = ML/data depth: model selection reasoning, feature engineering, evaluation metrics,
+                       statistical understanding, pipeline design, production ML considerations.
+- communication_quality = ability to explain technical ML concepts clearly to both technical and non-technical audiences.
+- epistemic_calibration = honest uncertainty around model performance, data limitations, and generalisation.
+- groundedness       = named models/techniques, specific datasets, real metrics (AUC, RMSE, p99 latency), concrete results.
+When writing feedback, focus on ML methodology, data intuition, experimentation rigour, and production awareness.
+DIMENSION PRIORITY: ML/Data Depth (technical_depth) and Specificity (groundedness) are the primary
+signals. When the candidate demonstrates strong ML reasoning or cites specific metrics and models,
+report that as the headline strength. Communication quality is a supporting signal, not the lead.
+"""
+
+    # Default: backend / software engineering
+    return f"""\
+ROLE CONTEXT — {role} interview (focus: {focus_area}):
+{seniority}
+Interpret scoring dimensions as follows for this role:
+- technical_depth    = engineering knowledge depth: architectural understanding, implementation mechanics,
+                       operational tradeoffs, system-level thinking, debugging approach.
+- communication_quality = clear explanation of complex technical concepts, structured reasoning.
+- epistemic_calibration = technical honesty: accurate self-assessment of knowledge gaps, not bluffing on
+                          implementation details.
+- groundedness       = named technologies, specific metrics, concrete implementation details, real system examples.
+When writing feedback, focus on technical depth, architectural thinking, operational reasoning, and system design tradeoffs.
+DIMENSION PRIORITY: Technical Depth and Groundedness are the primary signals for this role.
+When the candidate demonstrates strong architectural reasoning, implementation mechanics, or
+cites specific technologies and tradeoffs, report those as the headline strengths.
+Communication quality is a supporting dimension — it should not outrank domain performance
+when the candidate shows genuine technical depth.
+"""
+
+
 def build_analysis_user_prompt(
     role: str,
     focus_area: str,
@@ -191,16 +328,20 @@ def build_analysis_user_prompt(
     warm_up_weight: float,
 ) -> str:
     turns_str = _fmt_turns_full(turns_data)
+    role_ctx = _role_scoring_context(role, focus_area, difficulty_target)
     return f"""\
 INTERVIEW: Role={role} | Focus={focus_area} | Difficulty={difficulty_target}
 Warm-up turn weight={warm_up_weight} (turn_index=0 scored at this weight)
 Total turns={len(turns_data)}
 
+{role_ctx}
+
 TRANSCRIPT WITH EVALUATOR DATA:
 {turns_str}
 
 Analyze the interview above. Identify patterns, notable moments, and topic performance.
-Reference specific technologies, decisions, and claims from the actual answers.
+Reference specific content (decisions, examples, claims) from the actual answers as interpreted
+through the role context above.
 Return ONLY the JSON object.
 """
 
@@ -212,10 +353,45 @@ def build_report_user_prompt(
     total_turns: int,
     analysis_json: str,
     turns_data: list[dict],
+    weakness_severity: str = "significant",
+    weakest_label: str = "",
+    difficulty_target: str = "mid",
 ) -> str:
     turns_ref = _fmt_turns_ref(turns_data)
+    role_ctx = _role_scoring_context(role, focus_area, difficulty_target)
+
+    if weakness_severity == "none" or not weakest_label:
+        severity_banner = """\
+⚡ MANDATORY — WEAKNESS FRAMING: BALANCED PROFILE
+The candidate scored consistently across all dimensions. There is NO significant weakness.
+→ Do NOT manufacture a gap. Do NOT call any dimension "weak" or a "needs work" item.
+→ If you include improvement_areas at all, use ONLY language like:
+  "one area to explore further", "to further develop", "a natural next step would be".
+→ improvement_areas.observation MUST NOT describe this as a gap or deficiency."""
+    elif weakness_severity == "minor":
+        severity_banner = f"""\
+⚡ MANDATORY — WEAKNESS FRAMING: MINOR GAP
+'{weakest_label}' is the lowest scoring dimension, but the absolute score is solid
+and the gap between dimensions is small. This is NOT a critical weakness.
+→ Do NOT write "significantly lacking", "needs major improvement", "clear gap", or "weak".
+→ You MUST use softened language throughout: "slight improvement opportunity",
+  "minor growth area", "not much evidence of [X] yet", "could be further strengthened",
+  "growth area: {weakest_label} (minor)".
+→ The tone for improvement_areas must match: gentle, growth-oriented, encouraging.
+→ strongest/weakest selection must reflect actual score differences — do NOT invent drama."""
+    else:
+        severity_banner = f"""\
+⚡ WEAKNESS FRAMING: SIGNIFICANT GAP
+'{weakest_label}' is a clear and meaningful gap relative to other dimensions.
+→ Call it out directly with specific transcript evidence.
+→ Use direct language in improvement_areas, but stay professional and constructive."""
+
     return f"""\
-INTERVIEW: session={session_id} | role={role} | focus={focus_area} | turns={total_turns}
+{severity_banner}
+
+INTERVIEW: session={session_id} | role={role} | focus={focus_area} | turns={total_turns} | difficulty={difficulty_target}
+
+{role_ctx}
 
 DIAGNOSTIC ANALYSIS (use this to understand patterns):
 {analysis_json}
@@ -224,11 +400,14 @@ TURN REFERENCE (use exact turn indices and paraphrase content — do NOT fabrica
 {turns_ref}
 
 Generate the CoachReport JSON now.
-Remember:
-- Every observation must reference specific technologies, mechanisms, or scenarios from these turns.
-- Every evidence excerpt must paraphrase what the candidate actually said in that turn.
-- Every suggestion must be a concrete engineering task (not generic advice).
-- practice_recommendations must reference technologies/scenarios from THIS interview.
+Hard constraints:
+1. Follow the ⚡ WEAKNESS FRAMING instruction above — it overrides any other instinct to name a weakness.
+2. Interpret ALL scores and dimensions through the ROLE CONTEXT above (not as engineering metrics).
+3. Every observation must reference specific content from these actual turns.
+4. Every evidence excerpt must paraphrase what the candidate actually said in that turn.
+5. Every suggestion must be a concrete, role-appropriate practice task (not generic advice).
+6. practice_recommendations must reference the specific topics/scenarios from THIS interview.
+7. strongest_dimension and weakest_dimension: if score gap ≤ 0.3, leave both as "".
 Return ONLY the JSON object.
 """
 

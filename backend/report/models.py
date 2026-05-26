@@ -42,6 +42,12 @@ class CoachReport(BaseModel):
     overall_summary: str
     score_summary: ScoreSummary
 
+    # Role-appropriate display labels for each scoring dimension.
+    # Keys are the four dimension names (technical_depth, communication_quality,
+    # epistemic_calibration, groundedness); values are role-appropriate labels.
+    # Frontend uses these to relabel score bars and strongest/weakest cards.
+    dimension_labels: Optional[dict] = None
+
     strengths: list[FeedbackPoint]
     improvement_areas: list[FeedbackPoint]
 
@@ -53,5 +59,7 @@ class CoachReport(BaseModel):
     topic_coverage: list[TopicCoverageSummary]
     transcript_highlights: list[TurnEvidence]
 
+    overall_score: float = 0.0          # Deterministic 0–10 score (never LLM-generated)
     generated_at: str
     prompt_version_coach: str
+    weakness_severity: Optional[str] = None  # "none" | "minor" | "significant"
