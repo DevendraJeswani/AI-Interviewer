@@ -23,5 +23,8 @@ export const api = {
   getReport: (session_id) =>
     request(`${BASE}/report?session_id=${session_id}`),
 
+  endSession: (session_id) =>
+    request(`${BASE}/end`, { method: 'POST', body: JSON.stringify({ session_id }) }),
+
   health: () => fetch(`${API_BASE}/health`).then(r => r.json()),
 }

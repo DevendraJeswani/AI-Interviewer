@@ -74,6 +74,19 @@ class AnswerResponse(BaseModel):
     is_complete: bool
 
 
+class EndSessionRequest(BaseModel):
+    session_id: str
+
+
+class EndSessionResponse(BaseModel):
+    eligible: bool
+    already_complete: bool = False
+    substantive_turns: int = 0
+    threshold: int = 0
+    interview_mode: str = "normal"
+    error: Optional[str] = None
+
+
 # ── Endpoints ─────────────────────────────────────────────────────────────────
 
 @app.get("/health")
@@ -175,6 +188,26 @@ async def submit_answer(req: AnswerRequest):
         turn_count=session.turn_count(),
         is_complete=session.is_complete(),
     )
+
+
+@app.post("/session/end", response_model=EndSessionResponse)
+async def end_session_early(req: EndSessionRequest):
+    """
+    End the interview early and attempt to generate a report.
+    Returns 'eligible: false' with counts if there is not enough transcript depth.
+    Returns 'eligible: true' once the report has been generated and stored.
+    """
+    session = _sessions.get(req.session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    try:
+        result = session.end_early()
+    except Exception as e:
+        logger.error(f"Early termination failed for {req.session_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Early termination failed: {e}")
+
+    return EndSessionResponse(**result)
 
 
 @app.get("/session/report")

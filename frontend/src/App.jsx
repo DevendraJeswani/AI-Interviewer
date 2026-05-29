@@ -710,6 +710,162 @@ textarea.inp { resize: vertical; min-height: 60px; }
 .spin { width: 32px; height: 32px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .ltxt { font-family: var(--mono); font-size: 0.75rem; color: var(--text3); }
+
+/* End interview button */
+.btn-end-early {
+  padding: 3px 11px;
+  border-radius: 20px;
+  border: 1px solid rgba(248,113,113,0.3);
+  background: transparent;
+  color: var(--red);
+  font-family: var(--mono);
+  font-size: 0.67rem;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-end-early:hover { background: rgba(248,113,113,0.1); border-color: rgba(248,113,113,0.5); }
+.btn-end-early:disabled { opacity: 0.3; cursor: not-allowed; }
+
+/* Confirmation modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.modal-box {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 16px;
+  padding: 1.75rem 2rem;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 32px 80px rgba(0,0,0,0.55);
+}
+.modal-icon { font-size: 1.6rem; margin-bottom: 0.8rem; }
+.modal-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 0.55rem;
+  line-height: 1.3;
+}
+.modal-body {
+  font-size: 0.83rem;
+  color: var(--text2);
+  line-height: 1.75;
+  margin-bottom: 1.5rem;
+}
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.btn-cancel {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border2);
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text2);
+  font-family: var(--sans);
+  font-size: 0.83rem;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn-cancel:hover { background: var(--surface2); color: var(--text); }
+.btn-cancel:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-danger {
+  padding: 0.5rem 1.1rem;
+  border: none;
+  border-radius: var(--r-sm);
+  background: var(--red);
+  color: white;
+  font-family: var(--sans);
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  box-shadow: 0 0 16px rgba(248,113,113,0.25);
+  display: flex; align-items: center; gap: 7px;
+}
+.btn-danger:hover { opacity: 0.88; }
+.btn-danger:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+
+/* Insufficient data screen */
+.insufficient {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background:
+    radial-gradient(ellipse 50% 40% at 50% 30%, rgba(248,113,113,0.06) 0%, transparent 70%),
+    var(--bg);
+}
+.insufficient-box {
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+}
+.insufficient-icon { font-size: 2.4rem; margin-bottom: 1.1rem; }
+.insufficient-title {
+  font-family: var(--serif);
+  font-size: 1.9rem;
+  font-weight: 400;
+  color: var(--text);
+  line-height: 1.2;
+  margin-bottom: 0.7rem;
+}
+.insufficient-body {
+  font-size: 0.87rem;
+  color: var(--text2);
+  line-height: 1.8;
+  margin-bottom: 1.75rem;
+}
+.insufficient-stats {
+  display: inline-flex;
+  gap: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+.istat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 1.1rem 2rem;
+}
+.istat + .istat { border-left: 1px solid var(--border); }
+.istat-val {
+  font-family: var(--serif);
+  font-size: 2.4rem;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--text);
+}
+.istat-val.below { color: var(--red); }
+.istat-val.target { color: var(--text3); }
+.istat-lbl {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--text3);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.insufficient-note {
+  font-size: 0.78rem;
+  color: var(--text3);
+  font-family: var(--mono);
+  margin-bottom: 2rem;
+  line-height: 1.6;
+}
 `
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -839,6 +995,87 @@ function useSpeechToText() {
   const clearTranscript = useCallback(() => setTranscript(''), [])
 
   return { isListening, transcript, setTranscript, startListening, stopListening, clearTranscript, supported }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   END INTERVIEW CONFIRMATION MODAL
+───────────────────────────────────────────────────────────────────────── */
+function EndInterviewModal({ onConfirm, onCancel, loading }) {
+  return (
+    <div className="modal-overlay" onClick={e => { if (e.target === e.currentTarget && !loading) onCancel() }}>
+      <div className="modal-box">
+        <div className="modal-icon">⏹</div>
+        <div className="modal-title">End interview early?</div>
+        <div className="modal-body">
+          Your answers so far will be evaluated. If you've completed enough questions,
+          a full performance report will be generated. Otherwise, you'll see a summary
+          of what was collected.
+        </div>
+        <div className="modal-actions">
+          <button className="btn-cancel" onClick={onCancel} disabled={loading}>
+            Keep going
+          </button>
+          <button className="btn-danger" onClick={onConfirm} disabled={loading}>
+            {loading
+              ? <><div className="spin" style={{width:14,height:14,borderWidth:2}} /> Generating…</>
+              : 'End & generate report'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   INSUFFICIENT DATA SCREEN
+───────────────────────────────────────────────────────────────────────── */
+function InsufficientDataScreen({ data, onRestart }) {
+  const { substantive_turns = 0, threshold = 5, interview_mode = 'normal' } = data || {}
+  const remaining = Math.max(0, threshold - substantive_turns)
+  const modeLabel = interview_mode === 'grill' ? 'Grill Mode' : 'Normal'
+
+  return (
+    <div className="insufficient">
+      <div className="insufficient-box">
+        <div className="insufficient-icon">📊</div>
+        <div className="insufficient-title">Not enough data yet</div>
+        <div className="insufficient-body">
+          A meaningful performance report requires at least <strong>{threshold} evaluated
+          questions</strong> in {modeLabel}. Only <strong>{substantive_turns}</strong> {substantive_turns === 1 ? 'question was' : 'questions were'} answered.
+          {remaining > 0 && <> Answer {remaining} more to unlock a full report with scores,
+          strengths, and personalised recommendations.</>}
+        </div>
+
+        <div className="insufficient-stats">
+          <div className="istat">
+            <div className={`istat-val ${substantive_turns < threshold ? 'below' : ''}`}>
+              {substantive_turns}
+            </div>
+            <div className="istat-lbl">answered</div>
+          </div>
+          <div className="istat">
+            <div className="istat-val target">{threshold}</div>
+            <div className="istat-lbl">required</div>
+          </div>
+          {remaining > 0 && (
+            <div className="istat">
+              <div className="istat-val target">{remaining}</div>
+              <div className="istat-lbl">remaining</div>
+            </div>
+          )}
+        </div>
+
+        <div className="insufficient-note">
+          No scores or competency rankings have been generated — there wasn't
+          enough transcript evidence to produce reliable feedback.
+        </div>
+
+        <button className="btn-primary" style={{maxWidth: 260, margin: '0 auto'}} onClick={onRestart}>
+          Start a new interview →
+        </button>
+      </div>
+    </div>
+  )
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -1022,13 +1259,15 @@ function SetupScreen({ onStart }) {
 /* ─────────────────────────────────────────────────────────────────────────
    INTERVIEW SCREEN
 ───────────────────────────────────────────────────────────────────────── */
-function InterviewScreen({ sessionId, firstQuestion, topic, phase: initPhase, role, interviewMode, onComplete }) {
+function InterviewScreen({ sessionId, firstQuestion, topic, phase: initPhase, role, interviewMode, onComplete, onInsufficientEnd }) {
   const [messages, setMessages] = useState([{ role: 'ai', content: firstQuestion }])
   const [loading, setLoading] = useState(false)
   const [topic_, setTopic] = useState(topic)
   const [phase_, setPhase] = useState(initPhase)
   const [turns, setTurns] = useState(0)
   const [error, setError] = useState(null)
+  const [showEndModal, setShowEndModal] = useState(false)
+  const [endingEarly, setEndingEarly] = useState(false)
 
   const chatRef = useRef(null)
   const { speak, stopSpeaking, isSpeaking } = useElevenLabs()
@@ -1083,6 +1322,26 @@ function InterviewScreen({ sessionId, firstQuestion, topic, phase: initPhase, ro
     } finally { setLoading(false) }
   }
 
+  const handleEndEarly = async () => {
+    setEndingEarly(true)
+    try {
+      const result = await api.endSession(sessionId)
+      setShowEndModal(false)
+      if (result.eligible) {
+        // Report was generated — go to report screen normally
+        onComplete(sessionId)
+      } else {
+        // Not enough turns for a report
+        onInsufficientEnd(result)
+      }
+    } catch (e) {
+      setShowEndModal(false)
+      setError(e.message || 'Could not end interview. Please try again.')
+    } finally {
+      setEndingEarly(false)
+    }
+  }
+
   // Clean display transcript (remove [listening...] for display)
   const displayTranscript = transcript.replace(/\s*\[listening\.\.\.\]$/, '')
   const isRecording = isListening
@@ -1090,6 +1349,15 @@ function InterviewScreen({ sessionId, firstQuestion, topic, phase: initPhase, ro
 
   return (
     <div className="interview">
+      {/* Confirmation modal */}
+      {showEndModal && (
+        <EndInterviewModal
+          loading={endingEarly}
+          onConfirm={handleEndEarly}
+          onCancel={() => !endingEarly && setShowEndModal(false)}
+        />
+      )}
+
       {/* Header */}
       <div className="iheader">
         <div className="hlogo">
@@ -1099,7 +1367,19 @@ function InterviewScreen({ sessionId, firstQuestion, topic, phase: initPhase, ro
             <div className="hmeta">interview in progress</div>
           </div>
         </div>
-        <div className="badges">
+
+        {/* End interview button — sits between logo and status badges */}
+        <button
+          className="btn-end-early"
+          style={{ marginLeft: 'auto' }}
+          onClick={() => setShowEndModal(true)}
+          disabled={loading || endingEarly || phase_ === 'closing' || phase_ === 'reporting'}
+          title="End interview early and generate a report"
+        >
+          End interview
+        </button>
+
+        <div className="badges" style={{ marginLeft: 0 }}>
           {interviewMode === 'grill' && (
             <div className="grill-badge">
               <div className="grill-dot" />
@@ -1471,12 +1751,14 @@ function ReportScreen({ sessionId, onRestart }) {
    ROOT APP
 ───────────────────────────────────────────────────────────────────────── */
 export default function App() {
-  const [phase, setPhase] = useState('setup')
+  const [phase, setPhase] = useState('setup')   // 'setup' | 'interview' | 'report' | 'insufficient'
   const [session, setSession] = useState(null)
+  const [insufficientData, setInsufficientData] = useState(null)
 
   const onStart = (data) => { setSession(data); setPhase('interview') }
   const onComplete = (sid) => { setSession(s => ({ ...s, session_id: sid })); setPhase('report') }
-  const onRestart = () => { setSession(null); setPhase('setup') }
+  const onRestart = () => { setSession(null); setPhase('setup'); setInsufficientData(null) }
+  const onInsufficientEnd = (data) => { setInsufficientData(data); setPhase('insufficient') }
 
   return (
     <>
@@ -1491,10 +1773,14 @@ export default function App() {
           role={session.role || 'Interview'}
           interviewMode={session.interview_mode || 'normal'}
           onComplete={onComplete}
+          onInsufficientEnd={onInsufficientEnd}
         />
       )}
       {phase === 'report' && session && (
         <ReportScreen sessionId={session.session_id} onRestart={onRestart} />
+      )}
+      {phase === 'insufficient' && (
+        <InsufficientDataScreen data={insufficientData} onRestart={onRestart} />
       )}
     </>
   )
