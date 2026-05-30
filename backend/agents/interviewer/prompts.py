@@ -271,77 +271,177 @@ def _build_character_opening_prompt(
 ) -> str:
     """
     Build an immersive character-specific opening prompt.
-    The character's opening style is the PRIMARY constraint — immersion before format.
+
+    Strategy: show the model concrete opening-hook and opening-question examples
+    from the character's seed profile so it calibrates to the EXACT energy level
+    required — not abstract instructions about tone, but actual sample sentences
+    that demonstrate what that voice sounds like.
     """
     name = character_persona.get("persona_name", "the interviewer")
     opening_style = character_persona.get("opening_style", "Direct and purposeful.")
-    examples = character_persona.get("dialogue_examples", [])
     immersion_note = character_persona.get("immersion_note", "")
     tone = character_persona.get("tone", "")
     vocab = character_persona.get("vocabulary_style", "")
     speech_patterns = character_persona.get("speech_patterns", [])
 
-    # Use first 3 examples, formatted as opening-sentence models
-    examples_str = "\n".join(f'  • "{e}"' for e in examples[:3]) if examples else ""
+    # ── Opening hook examples (dedicated field > dialogue fallback) ───────────
+    opening_hooks = character_persona.get("opening_hooks", [])
+    opening_questions = character_persona.get("opening_questions", [])
+    pressure_hooks = character_persona.get("pressure_opening_hooks", [])
+    dialogue_examples = character_persona.get("dialogue_examples", [])
+
+    # Build opening statement block
+    if opening_hooks:
+        hooks_to_show = opening_hooks[:4]
+        hooks_block = "\n".join(f'  {i+1}. "{h}"' for i, h in enumerate(hooks_to_show))
+    else:
+        # Fall back to non-question dialogue examples
+        non_q = [e for e in dialogue_examples if "?" not in e]
+        hooks_to_show = non_q[:4] or dialogue_examples[:4]
+        hooks_block = "\n".join(f'  {i+1}. "{e}"' for i, e in enumerate(hooks_to_show))
+
+    # Build opening question block
+    if opening_questions:
+        qs_to_show = opening_questions[:4]
+        qs_block = "\n".join(f'  {i+1}. "{q}"' for i, q in enumerate(qs_to_show))
+    else:
+        q_examples = [e for e in dialogue_examples if "?" in e]
+        qs_to_show = q_examples[:4] or dialogue_examples[:4]
+        qs_block = "\n".join(f'  {i+1}. "{e}"' for i, e in enumerate(qs_to_show))
+
+    # Grill mode — use pressure-specific hooks if available
+    grill_block = ""
+    if interview_mode == "grill":
+        if pressure_hooks:
+            p_lines = "\n".join(f'  ⚡ "{h}"' for h in pressure_hooks[:3])
+            grill_block = (
+                f"\n╔══ GRILL MODE — USE THIS HEIGHTENED ENERGY ══╗\n"
+                f"These are {name}'s most intense opening statements:\n{p_lines}\n"
+                f"The very first sentence must signal: this will be a high-pressure experience.\n"
+                f"╚══════════════════════════════════════════════╝"
+            )
+        else:
+            grill_block = (
+                f"\n⚡ GRILL MODE: Channel {name}'s most intense, uncompromising version. "
+                "Zero warmth. Pure controlled pressure from sentence one."
+            )
+
+    # Speech pattern fingerprints (top 3)
     speech_str = "\n".join(f"  • {p}" for p in speech_patterns[:3]) if speech_patterns else ""
 
-    grill_note = ""
-    if interview_mode == "grill":
-        grill_note = (
-            f"\nGRILL MODE ACTIVE: Channel {name}'s most intense, demanding version. "
-            "The very first sentence must signal this will be a high-pressure experience."
-        )
-
-    # Best example for modeling the opening question — tend to be the interactive ones
-    question_model = next(
-        (e for e in reversed(examples) if "?" in e or "walk me" in e.lower() or "tell me" in e.lower()),
-        examples[-1] if examples else ""
-    )
-    question_model_str = f'  • Model the opening question spirit on: "{question_model}"' if question_model else ""
+    # Character-specific forbidden phrases
+    forbidden = _get_character_forbidden_phrases(name)
 
     return f"""\
-CHARACTER OPENING — You ARE {name}. This is the very first thing the candidate hears.
-THE FIRST LINE IS EVERYTHING: If someone read only your first sentence, they must know
-immediately they are talking to {name} — from the WORDS, not the name.
-{grill_note}
+CHARACTER OPENING — YOU ARE {name.upper()}.
+{grill_block}
 
-WHO {name.upper()} IS IN AN INTERVIEW:
-{opening_style}
+╔══════════════════════════════════════════════════════════╗
+║  THE FIRST SENTENCE IS THE ENTIRE PERSONA.               ║
+║  If someone reads ONLY your opening line, they must know ║
+║  IMMEDIATELY — from the WORDS alone — that they are      ║
+║  talking to {name.upper()}.                                    ║
+║  Not "a confident interviewer." Not "someone inspired    ║
+║  by {name}." ACTUALLY {name.upper()}.                          ║
+╚══════════════════════════════════════════════════════════╝
 
+WHO {name.upper()} IS: {opening_style}
 TONE: {tone}
 VOCABULARY: {vocab}
 
-{name.upper()}'S VOICE FINGERPRINT:
+{name.upper()}'S VOICE FINGERPRINTS:
 {speech_str}
 
-CHARACTERISTIC EXPRESSIONS — capture this spirit (do not copy verbatim):
-{examples_str}
+══════════════════════════════════════════════════════════
+{name.upper()}'S OPENING STATEMENTS — GENERATE AT THIS EXACT ENERGY:
+══════════════════════════════════════════════════════════
+(These are what {name} would LITERALLY say as their first sentence.
+ Generate something with this IDENTICAL character fingerprint — not similar energy, THIS energy.)
+{hooks_block}
+
+══════════════════════════════════════════════════════════
+{name.upper()}'S OPENING QUESTIONS — GENERATE AT THIS EXACT ENERGY:
+══════════════════════════════════════════════════════════
+(These are what {name} would LITERALLY ask as their first question.
+ Generate something at this exact specificity and character-weight.)
+{qs_block}
 
 IMMERSION DIRECTIVE: {immersion_note}
 
-YOUR TASK:
+╔══════════════════════════════════════════════════════════╗
+║  YOUR OUTPUT — EXACTLY 2 SENTENCES:                      ║
+║                                                          ║
+║  Sentence 1: Opening STATEMENT — no "?", sets the tone   ║
+║              and power dynamic, unmistakably {name.upper()[:14]}      ║
+║                                                          ║
+║  Sentence 2: Opening QUESTION — ends with "?", feels     ║
+║              like {name.upper()[:14]} is testing you from word one    ║
+╚══════════════════════════════════════════════════════════╝
 
-STEP 1 — {name.upper()}'S OPENING (1 SHORT SENTENCE ONLY):
-  • A single statement, challenge, or power move that ONLY {name} would say
-  • Sets tone and power dynamic immediately
-  • Do NOT introduce yourself by title or years — that's for generic interviewers
-  • Do NOT say "Welcome", "Nice to meet you", or any warmth not in character
-  • ONE sentence. Short. Punchy. Unmistakably {name}.
+STRICT RULES:
+  ✗ Do NOT copy examples verbatim — generate something NEW at the same energy
+  ✗ Do NOT use any of these phrases: {forbidden}
+  ✗ Do NOT introduce yourself by title, name, or years of experience
+  ✗ Do NOT begin with warmth, greeting, or "welcome" unless that IS the character
+  ✓ The opening statement must make it unmistakable WHO is speaking
+  ✓ The question must feel like {name} testing — not generic interview small talk
+  ✓ Make it relevant to: {focus_area}
 
-STEP 2 — {name.upper()}'S OPENING QUESTION (1 sentence ending "?"):
-  • Invite the candidate to speak — in {name}'s voice
-  • FORBIDDEN: "Could you tell me more about that?", "Walk me through your background", "Tell me about yourself" — too generic, never in character
-{question_model_str}
-  • The question should feel like {name} is testing/challenging, not making polite conversation
-  • End with "?"
+Context (do not reference directly):
+  Focus area: {focus_area}
+  Candidate background: {candidate_background}
+  Session length: ~{target_turn_count} questions
 
-Candidate background (do not reference directly): {candidate_background}
-Focus area: {focus_area}
-Session length: ~{target_turn_count} questions.
-
-Output format: One opening sentence (character-defining). Then one question (in character, ending "?").
-Total: 2 sentences. No more.
+Generate exactly 2 sentences now.
 """
+
+
+def _get_character_forbidden_phrases(name: str) -> str:
+    """Return character-specific forbidden phrases for the opening."""
+    common = (
+        '"Tell me about yourself", "Walk me through your background", '
+        '"Welcome", "Nice to meet you", "Let\'s get started", '
+        '"Today we\'ll be discussing", "Great to have you here"'
+    )
+    overrides = {
+        "Harvey Specter": (
+            common + ', "I\'d love to hear", "Feel free to share", '
+            '"Could you tell me", any expression of warmth or encouragement'
+        ),
+        "Jessica Pearson": (
+            common + ', "Feel free to take your time", '
+            '"I\'m really looking forward to", over-explanation of the process'
+        ),
+        "Tyrion Lannister": (
+            common + ', corporate interview clichés, '
+            '"Let\'s dive right in", anything without wit or intelligence embedded in it'
+        ),
+        "Donna Paulsen": (
+            common + ', "Tell me about yourself" — she personalizes from the start, '
+            'generic opener that doesn\'t show she\'s already observing you'
+        ),
+        "Steve Jobs": (
+            common + ', "Walk me through your resume", '
+            '"What have you been working on" without a vision or greatness angle'
+        ),
+        "Gordon Ramsay": (
+            common + ', "Could you", "Would you mind", '
+            '"If you have time", anything indirect or overly polite'
+        ),
+        "Elon Musk": (
+            common + ', "That\'s a great question", social pleasantries, '
+            '"How are you today", anything not grounded in substance or first principles'
+        ),
+        "Tony Stark": (
+            common + ', "I\'m delighted to meet you", '
+            '"Let me tell you a bit about myself", formal corporate language'
+        ),
+        "Oprah Winfrey": (
+            '"Tell me about yourself" (too surface), "Walk me through your career" — '
+            'she goes DEEPER immediately, any opener that\'s purely professional without human depth'
+        ),
+    }
+    return overrides.get(name, common)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
