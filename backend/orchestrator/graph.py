@@ -43,9 +43,12 @@ def _load(gs: GraphState) -> InterviewState:
 
 
 def _serialize(v):
-    """Recursively serialize Pydantic models and containers to JSON-safe dicts."""
+    """Recursively serialize Pydantic models and containers to JSON-safe dicts.
+    Uses mode='json' so enum instances are stored as strings, not Python objects —
+    prevents LangGraph checkpoint 'unregistered type' warnings (future-breaking).
+    """
     if hasattr(v, "model_dump"):
-        return v.model_dump()
+        return v.model_dump(mode='json')
     if isinstance(v, list):
         return [_serialize(item) for item in v]
     if isinstance(v, dict):
@@ -110,4 +113,4 @@ def build_graph(checkpointer=None):
 
 
 def make_initial_graph_state(state: InterviewState) -> GraphState:
-    return {"interview_state": state.model_dump(), "human_input": None}
+    return {"interview_state": state.model_dump(mode='json'), "human_input": None}

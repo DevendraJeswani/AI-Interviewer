@@ -10,6 +10,7 @@ export default defineConfig({
       '/report':  'http://localhost:8000',
       '/health':  'http://localhost:8000',
       '/voice':   'http://localhost:8000',
+      '/persona': 'http://localhost:8000',
     }
   }
 })

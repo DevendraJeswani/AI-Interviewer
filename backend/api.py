@@ -150,8 +150,8 @@ async def start_session(req: StartRequest):
     effective_turns = req.target_turns
     if interview_mode == "grill":
         effective_turns = max(effective_turns, 10)
-    # Hard cap for the model field (le=14)
-    effective_turns = min(effective_turns, 14)
+    # Enforce both bounds: ge=4 (ImmutableContext min) and le=14 (ImmutableContext max)
+    effective_turns = max(4, min(effective_turns, 14))
 
     context = ImmutableContext(
         session_id=session_id,
