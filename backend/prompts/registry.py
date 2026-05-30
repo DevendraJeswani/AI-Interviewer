@@ -11,7 +11,7 @@ class PromptVersion:
         return f"{self.agent}-{self.version}"
 
 
-EVALUATOR_V1 = PromptVersion("evaluator", "v1.0", "Initial evaluator: 4 dimensions, 8 flags.")
+EVALUATOR_V1 = PromptVersion("signals", "v2.0", "Deterministic signal extractor: heuristic flags + baseline scores. No LLM.")
 STRATEGY_V1 = PromptVersion("strategy", "v1.0", "Initial strategy: 5 actions, guardrails.")
 INTERVIEWER_V1 = PromptVersion("interviewer", "v1.0", "Initial interviewer: persona card, 3 phases.")
 COACH_V1 = PromptVersion("coach", "v1.0", "Initial coach: 2-pass, mandatory citations.")

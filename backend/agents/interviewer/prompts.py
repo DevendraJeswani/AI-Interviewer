@@ -90,15 +90,113 @@ def build_system_prompt(
     persona_style: str,
     focus_area: str,
     interview_mode: str = "normal",
+    character_persona: dict | None = None,
 ) -> str:
-    persona = (
-        f"You are a {persona_seniority} {persona_role} with {persona_yoe} years of experience "
-        f"in {focus_area}. Style: {persona_style}"
-    )
-    base = INTERVIEWER_SYSTEM_PROMPT.format(persona_description=persona)
+    if character_persona and character_persona.get("persona_name"):
+        persona_desc = _build_character_persona_description(character_persona)
+    else:
+        persona_desc = (
+            f"You are a {persona_seniority} {persona_role} with {persona_yoe} years of experience "
+            f"in {focus_area}. Style: {persona_style}"
+        )
+    base = INTERVIEWER_SYSTEM_PROMPT.format(persona_description=persona_desc)
     if interview_mode == "grill":
         base += _GRILL_SYSTEM_ADDON
+    # Character personas override the generic acknowledgment templates entirely
+    if character_persona and character_persona.get("persona_name"):
+        base += _build_character_ack_override(character_persona)
     return base
+
+
+def _build_character_ack_override(cp: dict) -> str:
+    """
+    Appended to the system prompt when a character persona is active.
+    Explicitly overrides the generic acknowledgment examples so the character's
+    voice bleeds through every single response, not just the opening.
+    """
+    name = cp.get("persona_name", "the character")
+    strong_ack = cp.get("reaction_strong_answer", "")
+    weak_ack = cp.get("reaction_weak_answer", "")
+    tone = cp.get("tone", "")
+    vocab = cp.get("vocabulary_style", "")
+
+    # Build character-specific average-tier guidance from tone + vocab
+    avg_guidance = (
+        f"In {name}'s natural voice — brief, in-character. "
+        f"Tone: {tone}. Vocabulary: {vocab}. "
+        f"NOT the generic templates above."
+    ) if tone or vocab else f"Brief, in {name}'s natural voice. Not the generic templates above."
+
+    strong_block = f"STRONG: {strong_ack}" if strong_ack else f"STRONG: Reference specifically what was impressive, in {name}'s voice."
+    weak_block = f"WEAK: {weak_ack}" if weak_ack else f"WEAK: Challenge or redirect directly, in {name}'s voice."
+
+    return f"""
+══════════════════════════════════════════
+CHARACTER VOICE — ACKNOWLEDGMENT OVERRIDE  ({name.upper()})
+══════════════════════════════════════════
+YOU ARE {name.upper()}. The generic acknowledgment examples ("Makes sense.", "Noted.", "Got it.",
+"That gives me a sense of your approach.") are DEFAULT TEMPLATES FOR GENERIC INTERVIEWERS.
+They do NOT apply to you. Your character voice overrides them in EVERY sentence.
+
+PER-TURN ACKNOWLEDGMENT — IN {name.upper()}'S VOICE:
+  {strong_block}
+  {weak_block}
+  AVERAGE: {avg_guidance}
+
+RULE: Every sentence you produce must sound like {name}. If someone read your response without
+knowing the context, they should immediately recognize the character from the voice alone.
+Never slip into neutral interviewer mode. Never say "Makes sense." or "Got it." unless that
+is genuinely how {name} speaks.
+"""
+
+
+def _build_character_persona_description(cp: dict) -> str:
+    """
+    Build the PERSONA block for the system prompt from a PersonaConditioningBlock dict.
+    This replaces the generic 'you are a Director with N years' description.
+    """
+    name = cp.get("persona_name", "the character")
+    lines = [
+        f"CHARACTER PERSONA: You ARE {name}. Do not break character under any circumstances.",
+        f"",
+        f"CORE IDENTITY: {cp.get('core_identity', '')}",
+        f"TONE: {cp.get('tone', '')}",
+        f"VOCABULARY: {cp.get('vocabulary_style', '')}",
+    ]
+
+    speech = cp.get("speech_patterns", [])
+    if speech:
+        lines += ["", "HOW YOU SPEAK:"] + [f"  • {p}" for p in speech]
+
+    behavior = cp.get("questioning_behavior", [])
+    if behavior:
+        lines += ["", "HOW YOU QUESTION:"] + [f"  • {b}" for b in behavior]
+
+    traits = cp.get("behavioral_traits", [])
+    if traits:
+        lines += ["", "YOUR BEHAVIORAL TRAITS:"] + [f"  • {t}" for t in traits]
+
+    examples = cp.get("dialogue_examples", [])
+    if examples:
+        lines += [
+            "",
+            f"CHARACTERISTIC EXPRESSIONS OF {name.upper()}",
+            "(use naturally and in-context — adapt the spirit, not always verbatim):",
+        ] + [f"  • \"{e}\"" for e in examples]
+
+    if cp.get("opening_style"):
+        lines += ["", f"OPENING STYLE: {cp['opening_style']}"]
+    if cp.get("pressure_style"):
+        lines += [f"PRESSURE STYLE: {cp['pressure_style']}"]
+    if cp.get("immersion_note"):
+        lines += ["", f"IMMERSION DIRECTIVE: {cp['immersion_note']}"]
+    lines += [
+        "",
+        "IMPORTANT: You are conducting a real, structured interview. The persona influences HOW",
+        f"you ask questions — not WHETHER you ask them. Sound like {name} while following all",
+        "interview rules. Never break immersion. Never become a generic AI interviewer.",
+    ]
+    return "\n".join(lines)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -113,7 +211,18 @@ def build_opening_prompt(
     candidate_background: str,
     target_turn_count: int,
     interview_mode: str = "normal",
+    character_persona: dict | None = None,
 ) -> str:
+    # Character persona overrides the generic opening completely
+    if character_persona and character_persona.get("persona_name"):
+        return _build_character_opening_prompt(
+            character_persona=character_persona,
+            focus_area=focus_area,
+            candidate_background=candidate_background,
+            target_turn_count=target_turn_count,
+            interview_mode=interview_mode,
+        )
+
     mode_note = ""
     if interview_mode == "grill":
         mode_note = (
@@ -150,6 +259,88 @@ Candidate background context (for your awareness only, do not read it out): {can
 Planned length: ~{target_turn_count} questions after the introduction.
 
 Output: your self-introduction (2 sentences) + one open-ended self-intro question. End with "?".
+"""
+
+
+def _build_character_opening_prompt(
+    character_persona: dict,
+    focus_area: str,
+    candidate_background: str,
+    target_turn_count: int,
+    interview_mode: str,
+) -> str:
+    """
+    Build an immersive character-specific opening prompt.
+    The character's opening style is the PRIMARY constraint — immersion before format.
+    """
+    name = character_persona.get("persona_name", "the interviewer")
+    opening_style = character_persona.get("opening_style", "Direct and purposeful.")
+    examples = character_persona.get("dialogue_examples", [])
+    immersion_note = character_persona.get("immersion_note", "")
+    tone = character_persona.get("tone", "")
+    vocab = character_persona.get("vocabulary_style", "")
+    speech_patterns = character_persona.get("speech_patterns", [])
+
+    # Use first 3 examples, formatted as opening-sentence models
+    examples_str = "\n".join(f'  • "{e}"' for e in examples[:3]) if examples else ""
+    speech_str = "\n".join(f"  • {p}" for p in speech_patterns[:3]) if speech_patterns else ""
+
+    grill_note = ""
+    if interview_mode == "grill":
+        grill_note = (
+            f"\nGRILL MODE ACTIVE: Channel {name}'s most intense, demanding version. "
+            "The very first sentence must signal this will be a high-pressure experience."
+        )
+
+    # Best example for modeling the opening question — tend to be the interactive ones
+    question_model = next(
+        (e for e in reversed(examples) if "?" in e or "walk me" in e.lower() or "tell me" in e.lower()),
+        examples[-1] if examples else ""
+    )
+    question_model_str = f'  • Model the opening question spirit on: "{question_model}"' if question_model else ""
+
+    return f"""\
+CHARACTER OPENING — You ARE {name}. This is the very first thing the candidate hears.
+THE FIRST LINE IS EVERYTHING: If someone read only your first sentence, they must know
+immediately they are talking to {name} — from the WORDS, not the name.
+{grill_note}
+
+WHO {name.upper()} IS IN AN INTERVIEW:
+{opening_style}
+
+TONE: {tone}
+VOCABULARY: {vocab}
+
+{name.upper()}'S VOICE FINGERPRINT:
+{speech_str}
+
+CHARACTERISTIC EXPRESSIONS — capture this spirit (do not copy verbatim):
+{examples_str}
+
+IMMERSION DIRECTIVE: {immersion_note}
+
+YOUR TASK:
+
+STEP 1 — {name.upper()}'S OPENING (1 SHORT SENTENCE ONLY):
+  • A single statement, challenge, or power move that ONLY {name} would say
+  • Sets tone and power dynamic immediately
+  • Do NOT introduce yourself by title or years — that's for generic interviewers
+  • Do NOT say "Welcome", "Nice to meet you", or any warmth not in character
+  • ONE sentence. Short. Punchy. Unmistakably {name}.
+
+STEP 2 — {name.upper()}'S OPENING QUESTION (1 sentence ending "?"):
+  • Invite the candidate to speak — in {name}'s voice
+  • FORBIDDEN: "Could you tell me more about that?", "Walk me through your background", "Tell me about yourself" — too generic, never in character
+{question_model_str}
+  • The question should feel like {name} is testing/challenging, not making polite conversation
+  • End with "?"
+
+Candidate background (do not reference directly): {candidate_background}
+Focus area: {focus_area}
+Session length: ~{target_turn_count} questions.
+
+Output format: One opening sentence (character-defining). Then one question (in character, ending "?").
+Total: 2 sentences. No more.
 """
 
 
@@ -260,6 +451,8 @@ def build_chat_task_directive(
     strength_tier: str = "average",       # "strong" | "average" | "weak" | "blunder"
     is_candidate_question: bool = False,  # candidate asked YOU a question
     interview_mode: str = "normal",       # "normal" | "grill"
+    persona_context: str = "",            # injected from ConversationalState
+    character_persona: dict | None = None,  # character persona conditioning
 ) -> str:
     """
     This text is appended to the candidate's last answer in the chat history.
@@ -320,10 +513,17 @@ End with "?".{avoid_block}
 
     angle = reasoning.strip() if reasoning else f"A fresh angle on {current_topic} not yet covered."
 
+    persona_block = f"\n{persona_context}" if persona_context else ""
+
+    # ── Character persona voice injection ─────────────────────────────────────
+    char_voice_block = ""
+    if character_persona and character_persona.get("persona_name"):
+        char_voice_block = _build_persona_voice_note(character_persona, strength_tier)
+
     return f"""\
 ---
 [INTERVIEWER DIRECTIVE]
-{ack_instruction}{signal_hint}{pivot_note}
+{ack_instruction}{signal_hint}{pivot_note}{persona_block}{char_voice_block}
 
 Topic: {current_topic} | Action: {action} | Difficulty: {difficulty_level} — {diff_note}
 Angle to pursue: {angle}
@@ -331,6 +531,37 @@ Intent: {intent_note}{avoid_block}
 
 Respond now as the interviewer: acknowledgment (calibrated above) + one question. End with "?".
 """
+
+
+def _build_persona_voice_note(cp: dict, strength_tier: str) -> str:
+    """
+    Build the per-turn persona voice reminder injected into the chat directive.
+    Reminds the LLM how the character would react to this specific answer quality,
+    and explicitly overrides the generic acknowledgment templates in the system prompt.
+    """
+    name = cp.get("persona_name", "the character")
+    tone = cp.get("tone", "")
+
+    if strength_tier == "strong":
+        reaction = cp.get("reaction_strong_answer", f"Acknowledge in {name}'s voice — brief, specific, then push deeper.")
+    elif strength_tier in ("weak", "blunder"):
+        reaction = cp.get("reaction_weak_answer", f"React as {name} would to a weak answer — direct, unimpressed, redirect immediately.")
+    else:
+        follow = cp.get("followup_style", "Probe for the specific reasoning.")
+        reaction = f"Neutral acknowledgment in {name}'s voice ({tone}), then pursue: {follow}"
+
+    examples = cp.get("dialogue_examples", [])
+    # Pick the most conversational example as a style anchor (not the first, which may be a statement)
+    style_ref = next((e for e in examples if "?" in e or "walk me" in e.lower()), examples[0] if examples else "")
+    example_hint = f'\n  Style anchor (adapt, don\'t copy): "{style_ref}"' if style_ref else ""
+
+    return f"""
+[CHARACTER VOICE — {name.upper()} — THIS IS NON-NEGOTIABLE]
+OVERRIDE: Ignore the generic acknowledgment templates ("Makes sense.", "Noted.", "Got it.").
+You are {name}. Sound like {name} in EVERY sentence, including the acknowledgment.
+This turn reaction: {reaction}{example_hint}
+Your acknowledgment must be in {name}'s voice. Your question must feel like {name} asked it.
+One well-placed characteristic expression is welcome if contextually natural."""
 
 
 # ─────────────────────────────────────────────────────────────────────────────

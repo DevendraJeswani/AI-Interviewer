@@ -8,6 +8,10 @@ from state.defaults import MAX_CONSECUTIVE_ACTIONS_ON_TOPIC, apply_difficulty_ad
 
 logger = logging.getLogger(__name__)
 
+# Max extra turns the system may run past target_turn_count when there's still value.
+# Hard cap = min(target_turn_count + ADAPTIVE_EXTENSION, 14).
+ADAPTIVE_EXTENSION = 3
+
 
 
 
@@ -51,6 +55,31 @@ def is_weak_candidate(turns: list[TurnRecord] | None, current_evaluator: Evaluat
     return ratio_weak >= 0.5
 
 
+def _force_wrap_up(d: StrategyDecision) -> StrategyDecision:
+    return d.model_copy(update={
+        "next_action": NextAction.WRAP_UP,
+        "target_topic": "closing",
+        "follow_up_intent": FollowUpIntent.NONE,
+        "interview_phase": InterviewPhase.CLOSING,
+        "difficulty_adjustment": DifficultyAdjustment.NONE,
+    })
+
+
+def _can_extend(
+    derived: DerivedSignals,
+    evaluator: EvaluatorOutput,
+    is_weak: bool,
+) -> bool:
+    """
+    Returns True when extending past the soft target is justified:
+    topics still uncovered OR active follow-up signals remain.
+    Never extends for consistently-weak candidates.
+    """
+    if is_weak:
+        return False
+    return bool(derived.topics_remaining) or bool(evaluator.follow_up_signals)
+
+
 def apply_all_guardrails(
     decision: StrategyDecision,
     derived: DerivedSignals,
@@ -67,20 +96,42 @@ def apply_all_guardrails(
         effective_target = max(3, target_turn_count - 2)
         logger.warning(f"[Guardrail] WEAK_CANDIDATE detected. Shortened target turns to {effective_target}.")
 
-    # 1. Turn limit → force wrap_up
-    if derived.turn_count >= effective_target:
+    hard_cap = min(target_turn_count + ADAPTIVE_EXTENSION, 14)
+
+    # 1a. Absolute hard cap — unconditional wrap_up regardless of anything
+    if derived.turn_count >= hard_cap:
         if d.next_action != NextAction.WRAP_UP:
-            reason = "WEAK_CANDIDATE_LIMIT" if is_weak else "TURN_LIMIT"
-            overrides.append(f"{reason}: {derived.turn_count}>={effective_target} → wrap_up")
-            d = d.model_copy(update={
-                "next_action": NextAction.WRAP_UP, "target_topic": "closing",
-                "follow_up_intent": FollowUpIntent.NONE, "interview_phase": InterviewPhase.CLOSING,
-                "difficulty_adjustment": DifficultyAdjustment.NONE,
-            })
+            overrides.append(
+                f"HARD_CAP: {derived.turn_count}>={hard_cap} → wrap_up"
+            )
+            d = _force_wrap_up(d)
         _log(overrides)
         return GuardrailResult(d, overrides, bool(overrides))
 
-    # 1.5 Weak candidate → block probe and challenge, force pivot or simpler follow up
+    # 1b. Soft limit at effective_target — adaptive extension allowed
+    if derived.turn_count >= effective_target:
+        if d.next_action != NextAction.WRAP_UP:
+            if _can_extend(derived, evaluator, is_weak):
+                logger.info(
+                    f"[Guardrail] EXTENDING past target {effective_target} "
+                    f"(topics_remaining={len(derived.topics_remaining)}, "
+                    f"signals={len(evaluator.follow_up_signals)}, hard_cap={hard_cap})"
+                )
+            else:
+                reason = "WEAK_CANDIDATE_LIMIT" if is_weak else "TURN_LIMIT"
+                overrides.append(
+                    f"{reason}: {derived.turn_count}>={effective_target}, "
+                    f"no extension criteria → wrap_up"
+                )
+                d = _force_wrap_up(d)
+
+        # Return only when wrapping up — let remaining guardrails run for extensions
+        if d.next_action == NextAction.WRAP_UP:
+            _log(overrides)
+            return GuardrailResult(d, overrides, bool(overrides))
+        # else: fall through to depth-ceiling, consecutive-cap, etc.
+
+    # 2. Weak candidate → block probe and challenge, force pivot or simpler follow up
     if is_weak and d.next_action in (NextAction.PROBE, NextAction.CHALLENGE):
         overrides.append("WEAK_CANDIDATE: probe/challenge blocked → follow_up simpler_reframe or pivot")
         remaining = [t for t in derived.topics_remaining if t != d.target_topic]
@@ -98,7 +149,7 @@ def apply_all_guardrails(
                 "difficulty_adjustment": DifficultyAdjustment.DECREASE,
             })
 
-    # 2. Depth ceiling → force pivot (only blocks probe)
+    # 3. Depth ceiling → force pivot (only blocks probe)
     if evaluator.flags.depth_ceiling and d.next_action == NextAction.PROBE:
         overrides.append("DEPTH_CEILING: probe blocked → pivot")
         d = d.model_copy(update={
@@ -108,7 +159,7 @@ def apply_all_guardrails(
             "difficulty_adjustment": DifficultyAdjustment.HOLD,
         })
 
-    # 3. Consecutive cap → force pivot
+    # 4. Consecutive cap → force pivot
     consecutive = derived.consecutive_actions_on_topic.get(d.target_topic, 0)
     if consecutive >= MAX_CONSECUTIVE_ACTIONS_ON_TOPIC and d.next_action not in (NextAction.PIVOT, NextAction.WRAP_UP):
         overrides.append(f"CONSECUTIVE_CAP: {consecutive} actions on '{d.target_topic}' → pivot")
@@ -118,7 +169,7 @@ def apply_all_guardrails(
             "follow_up_intent": FollowUpIntent.NONE,
         })
 
-    # 4. Honest uncertainty → block probe
+    # 5. Honest uncertainty → block probe
     if evaluator.flags.honest_uncertainty and d.next_action == NextAction.PROBE:
         overrides.append("HONEST_UNCERTAINTY: probe blocked → follow_up simpler_reframe")
         d = d.model_copy(update={
@@ -127,7 +178,7 @@ def apply_all_guardrails(
             "difficulty_adjustment": DifficultyAdjustment.DECREASE,
         })
 
-    # 5. Intent integrity
+    # 6. Intent integrity
     if d.next_action in (NextAction.PROBE, NextAction.FOLLOW_UP) and d.follow_up_intent == FollowUpIntent.NONE:
         overrides.append(f"INTENT_REQUIRED: {d.next_action.value} needs intent → pivot")
         d = d.model_copy(update={
@@ -140,7 +191,7 @@ def apply_all_guardrails(
         overrides.append(f"INTENT_CLEAR: {d.next_action.value} must have intent=none")
         d = d.model_copy(update={"follow_up_intent": FollowUpIntent.NONE})
 
-    # 6. Normalize wrap_up target topic
+    # 7. Normalize wrap_up target topic
     if d.next_action == NextAction.WRAP_UP and d.target_topic != "closing":
         overrides.append(f"WRAP_UP_TARGET: normalizing target_topic to 'closing'")
         d = d.model_copy(update={"target_topic": "closing", "interview_phase": InterviewPhase.CLOSING})

@@ -14,6 +14,7 @@ from agents.interviewer.prompts import (
     build_closing_prompt,
     build_chat_task_directive,
 )
+from agents.interviewer.persona import build_persona_context_block
 from agents.llm_utils import call_with_retry
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,7 @@ def ask(state: InterviewState) -> str:
     system_prompt = _build_system_prompt(state)
 
     interview_mode = getattr(state.context, "interview_mode", "normal")
+    character_persona = getattr(state, "character_persona", None)
 
     # ── Opening turn ──────────────────────────────────────────────────────────
     if mailbox is None or turn_index == 0:
@@ -53,6 +55,7 @@ def ask(state: InterviewState) -> str:
             candidate_background=state.context.candidate_background,
             target_turn_count=state.context.target_turn_count,
             interview_mode=interview_mode,
+            character_persona=character_persona,
         )
         raw = _call_single(system_prompt, user_prompt)
         if raw is None:
@@ -148,6 +151,11 @@ def _build_chat_contents(
     )
     previously_asked = [f"[{t.topic}] {t.question}" for t in state.turns]
 
+    # Build persona context from conversational state + plan (both may be None)
+    conv_state = state.conversational_state
+    plan = state.interview_plan
+    persona_ctx = build_persona_context_block(conv_state, plan) if conv_state is not None else ""
+
     directive = build_chat_task_directive(
         current_topic=mailbox.target_topic,
         action=mailbox.next_action.value,
@@ -161,6 +169,8 @@ def _build_chat_contents(
         strength_tier=strength_tier,
         is_candidate_question=is_cand_question,
         interview_mode=interview_mode_chat,
+        persona_context=persona_ctx,
+        character_persona=state.character_persona if hasattr(state, "character_persona") else None,
     )
 
     last_user_content = f"{last_turn.answer}\n\n{directive}"
@@ -309,8 +319,9 @@ def _answer_strength_tier(ev: EvaluatorOutput, interview_mode: str = "normal") -
         ):
             return "blunder"
 
-    # Weak signals
+    # Weak signals — includes shallow_terminology so PM buzzword answers get minimal ack
     if (flags.vague_answer or flags.very_short_answer or flags.off_topic
+            or flags.shallow_terminology
             or scores.technical_depth <= 2 or scores.groundedness <= 2):
         return "weak"
 
@@ -328,6 +339,7 @@ def _answer_strength_tier(ev: EvaluatorOutput, interview_mode: str = "normal") -
 
 def _build_system_prompt(state: InterviewState) -> str:
     ctx = state.context
+    character_persona = getattr(state, "character_persona", None)
     return build_system_prompt(
         persona_role=ctx.persona_card.role,
         persona_seniority=ctx.persona_card.seniority.value,
@@ -335,6 +347,7 @@ def _build_system_prompt(state: InterviewState) -> str:
         persona_style=ctx.persona_card.style,
         focus_area=ctx.focus_area,
         interview_mode=getattr(ctx, "interview_mode", "normal"),
+        character_persona=character_persona,
     )
 
 

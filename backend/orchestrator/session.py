@@ -68,10 +68,20 @@ class InterviewSession:
         return cls._graph
 
     @classmethod
-    def start(cls, context: ImmutableContext) -> "InterviewSession":
-        state = InterviewState(context=context, derived=DerivedSignals(), mailboxes=AgentMailboxes())
+    def start(
+        cls,
+        context: ImmutableContext,
+        character_persona: dict | None = None,
+    ) -> "InterviewSession":
+        state = InterviewState(
+            context=context,
+            derived=DerivedSignals(),
+            mailboxes=AgentMailboxes(),
+            character_persona=character_persona,
+        )
         gs = make_initial_graph_state(state)
-        logger.info(f"[Session] Starting {context.session_id}")
+        persona_note = f" | persona={character_persona.get('persona_name', '?')!r}" if character_persona else ""
+        logger.info(f"[Session] Starting {context.session_id}{persona_note}")
         return cls(context.session_id, gs)
 
     def _raw(self) -> dict:

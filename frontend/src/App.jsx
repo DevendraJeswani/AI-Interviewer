@@ -547,12 +547,14 @@ textarea.inp { resize: vertical; min-height: 60px; }
   border-bottom: 1px solid var(--border);
   padding: 0.9rem 2rem;
   position: sticky; top: 0; z-index: 10;
-  display: flex; align-items: center; gap: 1rem;
+  display: flex; align-items: center; gap: 0.6rem;
 }
 .rtitle { font-family: var(--serif); font-size: 1.2rem; font-weight: 400; }
 .rmeta { font-family: var(--mono); font-size: 0.68rem; color: var(--text3); }
+
+/* Report action buttons */
+.rbar-actions { margin-left: auto; display: flex; gap: 7px; align-items: center; }
 .btn-sm {
-  margin-left: auto;
   padding: 0.4rem 0.9rem;
   border: 1px solid var(--border2);
   border-radius: var(--r-sm);
@@ -562,8 +564,33 @@ textarea.inp { resize: vertical; min-height: 60px; }
   font-size: 0.78rem;
   color: var(--text2);
   transition: all 0.15s;
+  display: flex; align-items: center; gap: 5px;
+  white-space: nowrap;
 }
 .btn-sm:hover { background: var(--surface2); color: var(--text); }
+.btn-sm:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn-sm.success { color: var(--green); border-color: rgba(52,211,153,0.4); }
+.btn-sm.pdf { color: var(--accent2); border-color: rgba(124,106,247,0.35); }
+.btn-sm.pdf:hover { background: rgba(124,106,247,0.1); color: var(--accent2); }
+
+/* Toast notification */
+.toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  background: var(--surface);
+  border: 1px solid var(--green);
+  color: var(--green);
+  border-radius: 30px;
+  padding: 0.5rem 1.25rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  z-index: 999;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  animation: toast-in 0.2s ease;
+}
+@keyframes toast-in { from { opacity:0; transform: translateX(-50%) translateY(8px); } to { opacity:1; transform: translateX(-50%) translateY(0); } }
 
 .rlayout {
   max-width: 1080px; margin: 0 auto; padding: 1.75rem;
@@ -866,6 +893,146 @@ textarea.inp { resize: vertical; min-height: 60px; }
   margin-bottom: 2rem;
   line-height: 1.6;
 }
+
+/* ── COACH INTELLIGENCE ── */
+.role-fit-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 1rem;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  margin-bottom: 0.5rem;
+}
+.fit-badge {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  margin-top: 1px;
+}
+.fit-badge.strong_fit  { background: var(--green-bg);  color: var(--green);  border: 1px solid rgba(52,211,153,0.3); }
+.fit-badge.partial_fit { background: var(--amber-bg);  color: var(--amber);  border: 1px solid rgba(251,191,36,0.3); }
+.fit-badge.weak_fit    { background: var(--red-bg);    color: var(--red);    border: 1px solid rgba(248,113,113,0.3); }
+.fit-text {
+  font-size: 0.83rem;
+  color: var(--text2);
+  line-height: 1.7;
+}
+
+/* Insight cards */
+.insight-section { display: flex; flex-direction: column; gap: 1rem; }
+.insight-card {
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+}
+.insight-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0.55rem 0.9rem;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--text2);
+  cursor: pointer;
+}
+.insight-card-header:hover { background: var(--bg2); }
+.insight-turn-ref {
+  color: var(--accent2);
+  font-weight: 600;
+}
+.insight-topic {
+  color: var(--text3);
+}
+.insight-gap-badge {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.insight-gap-badge.minor { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(251,191,36,0.25); }
+.insight-gap-badge.major { background: var(--red-bg);   color: var(--red);   border: 1px solid rgba(248,113,113,0.25); }
+
+.insight-body { padding: 0.85rem 0.9rem; display: flex; flex-direction: column; gap: 0.75rem; }
+
+.insight-sub-lbl {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
+}
+.insight-sub-lbl.green { color: var(--green); }
+.insight-sub-lbl.amber { color: var(--amber); }
+.insight-sub-lbl.blue  { color: var(--blue); }
+
+.insight-signal-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.insight-signal-list li {
+  font-size: 0.82rem;
+  color: var(--text2);
+  line-height: 1.55;
+  padding-left: 1.1rem;
+  position: relative;
+}
+.insight-signal-list.signals li::before  { content: '+'; position: absolute; left: 0; color: var(--green); font-weight: 700; }
+.insight-signal-list.gaps    li::before  { content: '–'; position: absolute; left: 0; color: var(--amber); font-weight: 700; }
+
+.insight-direction {
+  font-size: 0.82rem;
+  color: var(--text2);
+  font-style: italic;
+  line-height: 1.7;
+  border-left: 2px solid var(--border2);
+  padding-left: 0.75rem;
+}
+
+/* Key missing concepts (sidebar) */
+.missing-list { display: flex; flex-direction: column; gap: 6px; }
+.missing-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 0.82rem;
+  color: var(--text2);
+  line-height: 1.55;
+}
+.missing-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--amber);
+  flex-shrink: 0;
+  margin-top: 6px;
+}
+
+/* Persona badge in interview header */
+.persona-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(124,106,247,0.15);
+  border: 1px solid rgba(124,106,247,0.35);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--accent2);
+  white-space: nowrap;
+}
 `
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -1126,7 +1293,6 @@ function SetupScreen({ onStart }) {
         target_turns: interviewMode === 'grill' ? 10 : 6,
         interviewer_role: interviewerRole,
         interviewer_seniority: interviewerSeniority,
-        interviewer_yoe: Number(interviewerYoe),
         interviewer_style: interviewerStyle,
         interview_mode: interviewMode,
       })
@@ -1163,7 +1329,7 @@ function SetupScreen({ onStart }) {
               <input className="inp" value={focusArea} onChange={e => setFocusArea(e.target.value)} />
             </div>
             <div className="fg">
-              <label className="lbl">Difficulty</label>
+              <label className="lbl">Level</label>
               <select className="inp" value={difficulty} onChange={e => setDifficulty(e.target.value)}>
                 {['junior', 'mid', 'senior', 'staff'].map(d => (
                   <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>
@@ -1196,14 +1362,14 @@ function SetupScreen({ onStart }) {
           </div>
 
           <div style={{borderTop: '1px solid var(--border)', margin: '1.5rem 0', paddingTop: '1rem'}}>
-            <label className="lbl" style={{color: 'var(--accent)', fontSize: '0.8rem', marginBottom: '1rem'}}>Interviewer Persona Configuration</label>
+            <label className="lbl" style={{color: 'var(--accent)', fontSize: '0.8rem', marginBottom: '1rem'}}>Interviewer</label>
             <div className="row2">
               <div className="fg">
-                <label className="lbl">Interviewer Role</label>
+                <label className="lbl">Role</label>
                 <input className="inp" value={interviewerRole} onChange={e => setInterviewerRole(e.target.value)} />
               </div>
               <div className="fg">
-                <label className="lbl">Interviewer Seniority</label>
+                <label className="lbl">Seniority</label>
                 <select className="inp" value={interviewerSeniority} onChange={e => setInterviewerSeniority(e.target.value)}>
                   {['mid', 'senior', 'staff', 'principal', 'director'].map(d => (
                     <option key={d} value={d}>{d.charAt(0).toUpperCase() + d.slice(1)}</option>
@@ -1211,15 +1377,14 @@ function SetupScreen({ onStart }) {
                 </select>
               </div>
             </div>
-            <div className="row2">
-              <div className="fg">
-                <label className="lbl">Years of Experience</label>
-                <input className="inp" type="number" min="1" max="50" value={interviewerYoe} onChange={e => setInterviewerYoe(e.target.value)} />
-              </div>
-              <div className="fg">
-                <label className="lbl">Interviewer Style</label>
-                <input className="inp" value={interviewerStyle} onChange={e => setInterviewerStyle(e.target.value)} />
-              </div>
+            <div className="fg">
+              <label className="lbl">Style or persona</label>
+              <input
+                className="inp"
+                placeholder="e.g. Harvey Specter, warm mentor, aggressive VC, FAANG PM interviewer"
+                value={interviewerStyle}
+                onChange={e => setInterviewerStyle(e.target.value)}
+              />
             </div>
           </div>
 
@@ -1259,7 +1424,7 @@ function SetupScreen({ onStart }) {
 /* ─────────────────────────────────────────────────────────────────────────
    INTERVIEW SCREEN
 ───────────────────────────────────────────────────────────────────────── */
-function InterviewScreen({ sessionId, firstQuestion, topic, phase: initPhase, role, interviewMode, onComplete, onInsufficientEnd }) {
+function InterviewScreen({ sessionId, firstQuestion, topic, phase: initPhase, role, interviewMode, personaName, onComplete, onInsufficientEnd }) {
   const [messages, setMessages] = useState([{ role: 'ai', content: firstQuestion }])
   const [loading, setLoading] = useState(false)
   const [topic_, setTopic] = useState(topic)
@@ -1347,6 +1512,11 @@ function InterviewScreen({ sessionId, firstQuestion, topic, phase: initPhase, ro
   const isRecording = isListening
   const hasText = displayTranscript.trim().length > 0
 
+  // Persona avatar initials (e.g. "Harvey Specter" → "HS")
+  const personaInitials = personaName
+    ? personaName.trim().split(/\s+/).map(w => w[0]?.toUpperCase() || '').slice(0, 2).join('')
+    : 'AI'
+
   return (
     <div className="interview">
       {/* Confirmation modal */}
@@ -1380,6 +1550,11 @@ function InterviewScreen({ sessionId, firstQuestion, topic, phase: initPhase, ro
         </button>
 
         <div className="badges" style={{ marginLeft: 0 }}>
+          {personaName && (
+            <div className="persona-badge">
+              ⚡ {personaName}
+            </div>
+          )}
           {interviewMode === 'grill' && (
             <div className="grill-badge">
               <div className="grill-dot" />
@@ -1413,13 +1588,13 @@ function InterviewScreen({ sessionId, firstQuestion, topic, phase: initPhase, ro
         <div className="chat" ref={chatRef}>
           {messages.map((m, i) => (
             <div key={i} className={`mrow ${m.role}`}>
-              <div className={`avatar av-${m.role}`}>{m.role === 'ai' ? 'AI' : 'You'}</div>
+              <div className={`avatar av-${m.role}`}>{m.role === 'ai' ? personaInitials : 'You'}</div>
               <div className={`bubble ${m.role}`}>{m.content}</div>
             </div>
           ))}
           {loading && (
             <div className="mrow ai">
-              <div className="avatar av-ai">AI</div>
+              <div className="avatar av-ai">{personaInitials}</div>
               <div className="bubble ai">
                 <div className="typing">
                   <div className="dot" /><div className="dot" /><div className="dot" />
@@ -1563,22 +1738,118 @@ function Transcript({ turns, highlighted, refs }) {
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
+   COACH INTELLIGENCE COMPONENTS
+───────────────────────────────────────────────────────────────────────── */
+
+function RoleFitCard({ assessment, rating }) {
+  if (!assessment && !rating) return null
+  const labels = {
+    strong_fit:  'Strong Fit',
+    partial_fit: 'Partial Fit',
+    weak_fit:    'Developing Fit',
+  }
+  const label = labels[rating] || rating?.replace(/_/g, ' ') || ''
+  return (
+    <div className="role-fit-card">
+      {label && <span className={`fit-badge ${rating}`}>{label}</span>}
+      {assessment && <p className="fit-text">{assessment}</p>}
+    </div>
+  )
+}
+
+function TurnInsightCard({ insight, onCite }) {
+  if (!insight) return null
+  const { turn_index, topic, ideal_signals = [], missing_concepts = [], ideal_answer_outline, gap_severity } = insight
+  const hasContent = ideal_signals.length > 0 || missing_concepts.length > 0 || ideal_answer_outline
+
+  if (!hasContent) return null
+
+  return (
+    <div className="insight-card">
+      <div className="insight-card-header" onClick={() => onCite(turn_index)}>
+        <span className="insight-turn-ref">Turn {turn_index}</span>
+        <span className="insight-topic">· {topic}</span>
+        {gap_severity && gap_severity !== 'none' && (
+          <span className={`insight-gap-badge ${gap_severity}`}>{gap_severity} gap</span>
+        )}
+      </div>
+      <div className="insight-body">
+        {ideal_signals.length > 0 && (
+          <div>
+            <div className="insight-sub-lbl green">What strong answers would include</div>
+            <ul className="insight-signal-list signals">
+              {ideal_signals.map((s, i) => <li key={i}>{s}</li>)}
+            </ul>
+          </div>
+        )}
+        {missing_concepts.length > 0 && (
+          <div>
+            <div className="insight-sub-lbl amber">What was missing</div>
+            <ul className="insight-signal-list gaps">
+              {missing_concepts.map((m, i) => <li key={i}>{m}</li>)}
+            </ul>
+          </div>
+        )}
+        {ideal_answer_outline && (
+          <div>
+            <div className="insight-sub-lbl blue">Ideal direction</div>
+            <p className="insight-direction">{ideal_answer_outline}</p>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function IdealDirectionSection({ insights, onCite }) {
+  if (!insights?.length) return null
+  return (
+    <div className="rcrd">
+      <div className="slbl">Ideal Direction Analysis</div>
+      <div className="insight-section">
+        {insights.map((insight, i) => (
+          <TurnInsightCard key={i} insight={insight} onCite={onCite} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
    REPORT SCREEN
 ───────────────────────────────────────────────────────────────────────── */
-function ReportScreen({ sessionId, onRestart }) {
+function ReportScreen({ sessionId, reportId: initialReportId, onRestart }) {
   const [report, setReport] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [highlighted, setHighlighted] = useState(null)
+  const [reportId, setReportId] = useState(initialReportId || null)
+  const [pdfLoading, setPdfLoading] = useState(false)
+  const [toast, setToast] = useState(null)
   const turnRefs = useRef({})
   const transcriptRef = useRef(null)
+  const toastTimerRef = useRef(null)
+
+  const showToast = (msg) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    setToast(msg)
+    toastTimerRef.current = setTimeout(() => setToast(null), 2500)
+  }
 
   useEffect(() => {
-    api.getReport(sessionId)
-      .then(setReport)
+    // Load by reportId (shared link) or sessionId (normal flow)
+    const loader = initialReportId
+      ? api.getReportById(initialReportId)
+      : api.getReport(sessionId)
+
+    loader
+      .then(r => {
+        setReport(r)
+        if (r.report_id && !initialReportId) setReportId(r.report_id)
+      })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false))
-  }, [sessionId])
+  }, [sessionId, initialReportId])
 
   const onCite = useCallback((idx) => {
     setHighlighted(idx)
@@ -1590,6 +1861,62 @@ function ReportScreen({ sessionId, onRestart }) {
       transcriptRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
   }, [])
+
+  const handleDownloadPdf = async () => {
+    if (pdfLoading) return
+    setPdfLoading(true)
+    try {
+      // Prefer session-based endpoint in normal mode (session alive → always reliable).
+      // Fall back to report-id endpoint in shared mode (no session available).
+      let blob
+      if (sessionId) {
+        blob = await api.downloadPdf(sessionId)
+      } else if (reportId) {
+        blob = await api.downloadPdfById(reportId)
+      } else {
+        throw new Error('No session or report ID available for PDF download')
+      }
+
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `interview-report-${(sessionId || reportId || 'download').slice(0, 8)}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      // Delay revoke so the browser has time to initiate the download
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      showToast('PDF downloaded')
+    } catch (e) {
+      showToast('PDF download failed — ' + (e.message || 'unknown error'))
+    } finally {
+      setPdfLoading(false)
+    }
+  }
+
+  const handleShare = async () => {
+    if (!reportId) {
+      showToast('Report not yet shareable — try again in a moment')
+      return
+    }
+    const shareUrl = `${window.location.origin}${window.location.pathname}?report_id=${reportId}`
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      showToast('Share link copied to clipboard')
+    } catch {
+      // Fallback for browsers without clipboard API
+      const ta = document.createElement('textarea')
+      ta.value = shareUrl
+      ta.style.position = 'fixed'
+      ta.style.opacity = '0'
+      document.body.appendChild(ta)
+      ta.focus()
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+      showToast('Share link copied')
+    }
+  }
 
   if (loading) return (
     <div className="loading">
@@ -1615,12 +1942,33 @@ function ReportScreen({ sessionId, onRestart }) {
 
   return (
     <div className="report">
+      {toast && <div className="toast">{toast}</div>}
       <div className="rbar">
         <div>
           <div className="rtitle">Interview Report</div>
           <div className="rmeta">{report.role} · {report.focus_area} · {report.total_turns} turns · {report.interview_duration_approx}</div>
         </div>
-        <button className="btn-sm" onClick={onRestart}>New interview</button>
+        <div className="rbar-actions">
+          <button
+            className="btn-sm pdf"
+            onClick={handleDownloadPdf}
+            disabled={pdfLoading}
+            title="Download PDF report"
+          >
+            {pdfLoading
+              ? <><div className="spin" style={{width:12,height:12,borderWidth:1.5}} /> Generating…</>
+              : <>↓ Download PDF</>
+            }
+          </button>
+          <button
+            className="btn-sm"
+            onClick={handleShare}
+            title="Copy shareable link"
+          >
+            Share report
+          </button>
+          <button className="btn-sm" onClick={onRestart}>New interview</button>
+        </div>
       </div>
 
       <div className="rlayout">
@@ -1657,6 +2005,8 @@ function ReportScreen({ sessionId, onRestart }) {
               <div className="fsec">{report.improvement_areas.map((fp, i) => <FeedbackCard key={i} fp={fp} type="imp" onCite={onCite} />)}</div>
             </div>
           )}
+
+          <IdealDirectionSection insights={report.turn_insights} onCite={onCite} />
 
           {(report.technical_feedback || report.communication_feedback) && (
             <div className="rcrd">
@@ -1707,6 +2057,27 @@ function ReportScreen({ sessionId, onRestart }) {
             </div>
           )}
 
+          {(report.role_fit_assessment || report.role_fit_rating) && (
+            <div className="rcrd">
+              <div className="slbl">Role fit</div>
+              <RoleFitCard assessment={report.role_fit_assessment} rating={report.role_fit_rating} />
+            </div>
+          )}
+
+          {report.key_missing_concepts?.length > 0 && (
+            <div className="rcrd">
+              <div className="slbl">Key concept gaps</div>
+              <div className="missing-list">
+                {report.key_missing_concepts.map((c, i) => (
+                  <div key={i} className="missing-item">
+                    <div className="missing-dot" />
+                    <span>{c}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {report.topic_coverage?.length > 0 && (
             <div className="rcrd">
               <div className="slbl">Topic coverage</div>
@@ -1751,13 +2122,33 @@ function ReportScreen({ sessionId, onRestart }) {
    ROOT APP
 ───────────────────────────────────────────────────────────────────────── */
 export default function App() {
-  const [phase, setPhase] = useState('setup')   // 'setup' | 'interview' | 'report' | 'insufficient'
+  // Check for ?report_id=xxx deep link on first render
+  const _initialReportId = (() => {
+    try {
+      return new URLSearchParams(window.location.search).get('report_id') || null
+    } catch { return null }
+  })()
+
+  const [phase, setPhase] = useState(
+    _initialReportId ? 'report-shared' : 'setup'
+  )
   const [session, setSession] = useState(null)
   const [insufficientData, setInsufficientData] = useState(null)
+  const [sharedReportId] = useState(_initialReportId)
 
   const onStart = (data) => { setSession(data); setPhase('interview') }
   const onComplete = (sid) => { setSession(s => ({ ...s, session_id: sid })); setPhase('report') }
-  const onRestart = () => { setSession(null); setPhase('setup'); setInsufficientData(null) }
+  const onRestart = () => {
+    setSession(null)
+    setPhase('setup')
+    setInsufficientData(null)
+    // Clear the report_id query param from the URL without reloading
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('report_id')
+      window.history.replaceState({}, '', url.toString())
+    } catch { /* ignore */ }
+  }
   const onInsufficientEnd = (data) => { setInsufficientData(data); setPhase('insufficient') }
 
   return (
@@ -1772,12 +2163,23 @@ export default function App() {
           phase={session.phase}
           role={session.role || 'Interview'}
           interviewMode={session.interview_mode || 'normal'}
+          personaName={session.persona_name || ''}
           onComplete={onComplete}
           onInsufficientEnd={onInsufficientEnd}
         />
       )}
       {phase === 'report' && session && (
-        <ReportScreen sessionId={session.session_id} onRestart={onRestart} />
+        <ReportScreen
+          sessionId={session.session_id}
+          onRestart={onRestart}
+        />
+      )}
+      {phase === 'report-shared' && sharedReportId && (
+        <ReportScreen
+          sessionId={null}
+          reportId={sharedReportId}
+          onRestart={onRestart}
+        />
       )}
       {phase === 'insufficient' && (
         <InsufficientDataScreen data={insufficientData} onRestart={onRestart} />

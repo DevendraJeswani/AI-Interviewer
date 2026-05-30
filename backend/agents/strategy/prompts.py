@@ -64,7 +64,17 @@ ACTIONS AND WHEN TO USE THEM
   Use when: off_topic=true or very_short_answer=true.
 
 - wrap_up: Signal interview closing.
-  Use when: turn_count >= target_turn_count, or weak candidate early exit conditions met.
+  At target_turn_count: wrap up ONLY IF coverage is adequate (most topics visited OR
+    no meaningful topics remain) AND no active unresolved signals exist (no contradictions,
+    no validated weak areas, no specific claims left to probe).
+  EXTEND 1–3 turns past target_turn_count when ANY of:
+    • topics_remaining is non-empty — pivot to cover them
+    • evaluator flagged specific claims worth validating (follow_up_signals is non-empty)
+    • a weak or vague answer was detected and never resolved
+    • a strong answer opened a new high-value angle not yet explored
+  Hard cap: ALWAYS wrap_up at target_turn_count + 3 (or the hard cap shown above).
+  Do NOT extend for weak candidates — wrap_up at or before target.
+  Do NOT wrap up just because the turn count hit the target — incomplete coverage is worse.
 
 ════════════════════════════════════
 CANDIDATE STRENGTH CALIBRATION
@@ -79,6 +89,48 @@ WEAK CANDIDATE signals (technical_depth ≤ 2 OR groundedness ≤ 2 OR vague_ans
 → If 2+ consecutive weak turns: pivot to a fresh topic.
 → If 50%+ of substantive turns are weak: wrap_up early.
 → Be kind in pacing — shorter interview, gentler depth.
+
+════════════════════════════════════
+SURFACE ANSWER DETECTION — PROBE THESE AGGRESSIVELY
+════════════════════════════════════
+Strong-sounding language does NOT equal strong product thinking. Probe deeply when you detect:
+
+KEY DETECTION RULE (check BEFORE deciding action):
+  groundedness ≤ 2 AND communication_quality ≥ 3 → answer LOOKS fluent but IS shallow. PROBE.
+  vague_answer=true OR shallow_terminology=true → DO NOT treat as adequate. Probe the specific gap.
+  Do NOT move on or pivot when surface patterns are present — follow_up with validate_claim or
+  clarify_vagueness first. Pivoting away from an unresolved vague answer wastes evaluation signal.
+
+PATTERN: UNDEFINED METRICS — metric names listed without definition or causality
+  Signals: "I'd track engagement", "monitor retention", "look at session duration", "measure NPS"
+  → What to do: follow_up with validate_claim
+  → Probe: "How would you define [metric] to distinguish genuine value from surface activity?"
+  → Probe: "What threshold would tell you [metric] is moving in the right direction?"
+  → Probe: "How does [metric] prove value creation rather than just usage?"
+
+PATTERN: CAUSALITY GAP — correlation asserted as causal mechanism
+  Signals: "session duration = engagement", "more usage = more value", "returning users = success"
+  → What to do: probe or challenge
+  → Probe: "How does longer session duration distinguish deeper engagement from user confusion?"
+  → Probe: "What mechanism links [metric] to the outcome you actually care about?"
+
+PATTERN: FRAMEWORK LABEL WITHOUT APPLICATION
+  Signals: "I'd use AARRR / OKRs / North Star / Jobs-to-be-Done" (cited, not applied)
+  → What to do: follow_up with clarify_vagueness
+  → Probe: "Walk me through specifically how you'd apply that to this situation"
+  → Probe: "Which stage of [framework] is most critical here, and why?"
+
+PATTERN: UNDEFINED SUCCESS CRITERIA
+  Signals: "I'd know it's working if users are happy / engaged / coming back"
+  → What to do: follow_up with clarify_vagueness
+  → Probe: "What specific, measurable signal would tell you this is working versus not working?"
+  → Probe: "If you had to write a success threshold you'd put in your PRD, what would it be?"
+
+PATTERN: VAGUE PROCESS WITHOUT HYPOTHESIS
+  Signals: "I'd talk to users", "run A/B tests and iterate", "get data and decide"
+  → What to do: follow_up with clarify_vagueness
+  → Probe: "What specific hypothesis would you test, and what would a positive result look like?"
+  → Probe: "What user insight would change your product direction entirely?"
 
 ════════════════════════════════════
 DUPLICATE PREVENTION
@@ -135,8 +187,12 @@ def build_strategy_user_prompt(
     evaluation_confidence: str, cross_turn_summary: str, score_trajectory: str,
     last_question: str, last_answer: str, recent_history: list[dict],
     interview_mode: str = "normal",
+    plan_context_block: str = "",
+    retrieved_context=None,
 ) -> str:
     turns_left = target_turn_count - turn_count
+    hard_cap = min(target_turn_count + 3, 14)
+    turns_to_hard_cap = hard_cap - turn_count
     coverage_str = "\n".join(
         f"  {t:<30} {s}{' [DEPTH CEILING]' if t in depth_ceilings else ''}"
         for t, s in topic_coverage.items()
@@ -192,16 +248,36 @@ WEAK answer (depth ≤ 2 OR grnd ≤ 2):
 Current signals: depth={td}/5, grnd={gr}/5
 """
 
-    # Urgency alerts
+    # Urgency alerts — respect adaptive extension zone (target is soft, hard_cap is absolute)
     urgency = ""
-    if turns_left <= 1:
-        urgency = f"\n⚠ FINAL TURN: Must wrap_up now.\n"
+    if turns_to_hard_cap <= 0:
+        urgency = f"\n⚠ HARD CAP ({turn_count}/{hard_cap}): Must wrap_up now — no further extensions.\n"
+    elif turns_to_hard_cap == 1:
+        urgency = (
+            f"\n⚠ LAST EXTENSION TURN ({turn_count}/{hard_cap}): "
+            f"Wrap up after this unless there is exactly one critical unresolved signal.\n"
+        )
+    elif turns_left <= 0:
+        # Past target but within hard cap — adaptive extension zone
+        extra_used = turn_count - target_turn_count
+        urgency = (
+            f"\n📋 EXTENSION TURN {extra_used}/{hard_cap - target_turn_count} "
+            f"(soft target={target_turn_count}, hard cap={hard_cap}): "
+            f"Continuing because topics remain or active signals exist. "
+            f"Wrap up if coverage is now sufficient and no key signals are unresolved.\n"
+        )
+    elif turns_left <= 1:
+        urgency = (
+            f"\n⚠ PACING: 1 turn to soft target ({target_turn_count}). "
+            f"Wrap up now OR pivot to cover remaining topics — can extend to {hard_cap} if needed.\n"
+        )
     elif turns_left <= 2 and topics_remaining:
-        # In grill mode, don't raise urgency until very last turns
         if interview_mode != "grill" or turns_left <= 1:
-            urgency = f"\n⚠ PACING ALERT: {turns_left} turn(s) left, {len(topics_remaining)} unvisited topics. Strongly prefer PIVOT or wrap_up.\n"
+            urgency = (
+                f"\n⚠ PACING ALERT: {turns_left} turn(s) to target, "
+                f"{len(topics_remaining)} unvisited topic(s). Prefer PIVOT.\n"
+            )
     elif coverage_breadth_pct < 40 and turn_count >= target_turn_count // 2:
-        # In grill mode, depth over breadth — only alert if coverage is very low
         breadth_threshold = 30 if interview_mode == "grill" else 40
         if coverage_breadth_pct < breadth_threshold:
             urgency = f"\n⚠ COVERAGE ALERT: Only {coverage_breadth_pct:.0f}% breadth at turn {turn_count}. Bias toward PIVOT.\n"
@@ -259,12 +335,15 @@ Current signals: depth={td}/5, grnd={gr}/5
     else:
         covered_angles_str = "  (none yet)"
 
+    plan_block = f"{plan_context_block}\n" if plan_context_block else ""
+    retrieval_block = _format_retrieval_block(retrieved_context)
+
     return f"""\
-{special_alert}{grill_block}══ INTERVIEW CONTEXT ══════════════════════════════════════
+{special_alert}{grill_block}{plan_block}{retrieval_block}══ INTERVIEW CONTEXT ══════════════════════════════════════
 Role: {role} | Focus: {focus_area} | Mode: {interview_mode.upper()}
 Target difficulty: {difficulty_target} | Current difficulty: {current_difficulty}
 Phase: {current_phase} | Topic: {current_topic}
-Turn: {turn_count}/{target_turn_count} ({turns_left} remaining)
+Turn: {turn_count}/{target_turn_count} (soft target) | Hard cap: {hard_cap} | To cap: {turns_to_hard_cap}
 Coverage: {coverage_breadth_pct:.0f}% | Trajectory: {score_trajectory}
 {persona_context}
 ══ TOPIC COVERAGE ══════════════════════════════════════════
@@ -314,3 +393,35 @@ def _format_history(history: list[dict]) -> str:
             f"  A: {t['answer']}"
         )
     return "\n\n".join(lines)
+
+
+def _format_retrieval_block(retrieved_context) -> str:
+    """
+    Formats a RetrievalRecord into a compact, prompt-ready context block.
+    Returns empty string if retrieval was not performed or did not succeed.
+
+    Design principles:
+    - Injected BEFORE interview context so the model treats it as background, not a question
+    - Kept to ≤120 words (already compressed by retrieval module)
+    - Explicit instruction: improve realism / depth, NOT test news memorisation
+    """
+    if retrieved_context is None:
+        return ""
+    if not retrieved_context.retrieval_succeeded:
+        return ""
+    ctx = retrieved_context.compressed_context
+    if not ctx:
+        return ""
+
+    company_line = (
+        f"Company: {retrieved_context.company}\n" if retrieved_context.company else ""
+    )
+    return (
+        f"══ COMPANY / INDUSTRY CONTEXT (web retrieval) ══════════════\n"
+        f"{company_line}"
+        f"{ctx}\n"
+        f"Note: Use this context to make questions more specific and realistic.\n"
+        f"Do NOT quiz the candidate on recent news — use context for depth.\n"
+        f"════════════════════════════════════════════════════════════\n"
+        f"\n"
+    )

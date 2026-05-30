@@ -5,13 +5,14 @@ import os
 from google import genai
 from google.genai import types
 
-from state.models import InterviewState, StrategyDecision, EvaluatorToStrategy, GuardrailResult, safe_rehydrate
+from state.models import InterviewState, InterviewPlan, StrategyDecision, EvaluatorToStrategy, GuardrailResult, safe_rehydrate
 from state.enums import InterviewPhase
 from state.defaults import fallback_strategy_decision
 from validation.schemas import validate_strategy_decision
 from prompts.registry import get_active_version_string
 from config.settings import AGENT_CONFIGS
 from agents.strategy.prompts import STRATEGY_SYSTEM_PROMPT, build_strategy_user_prompt
+from agents.strategy.planner import build_plan_context_block
 from orchestrator.guardrails import apply_all_guardrails, GuardrailResult
 from agents.llm_utils import call_with_retry
 
@@ -29,7 +30,11 @@ def _get_client():
     return _client
 
 
-def decide(state: InterviewState) -> tuple[StrategyDecision, GuardrailResult]:
+def decide(
+    state: InterviewState,
+    plan: Optional[InterviewPlan] = None,
+    retrieved_context=None,
+) -> tuple[StrategyDecision, GuardrailResult]:
     mailbox: Optional[EvaluatorToStrategy] = state.mailboxes.evaluator_to_strategy
     if mailbox is None:
         raise ValueError("Strategy Agent called without evaluator mailbox populated.")
@@ -37,7 +42,9 @@ def decide(state: InterviewState) -> tuple[StrategyDecision, GuardrailResult]:
     turn_count = len(state.turns)
     logger.info(f"[Strategy] Turn {turn_count} | topic={state.current_topic}")
 
-    user_prompt = _build_prompt(state, mailbox, turn_count)
+    # Use the explicitly passed plan (with reflection already applied) or fall back to state's plan
+    effective_plan = plan if plan is not None else state.interview_plan
+    user_prompt = _build_prompt(state, mailbox, turn_count, plan=effective_plan, retrieved_context=retrieved_context)
     raw = _call_llm(user_prompt)
 
     if raw is None:
@@ -93,6 +100,8 @@ def _build_prompt(
     state: InterviewState,
     mailbox: EvaluatorToStrategy,
     turn_count: int,
+    plan: Optional[InterviewPlan] = None,
+    retrieved_context=None,
 ) -> str:
     derived = state.derived
     ctx = state.context
@@ -127,6 +136,8 @@ def _build_prompt(
         for t in state.turns
     ]
 
+    plan_context_block = build_plan_context_block(plan) if plan and plan.initialized else ""
+
     return build_strategy_user_prompt(
         persona_role=ctx.persona_card.role,
         persona_seniority=ctx.persona_card.seniority.value,
@@ -154,4 +165,6 @@ def _build_prompt(
         last_answer=state.current_answer,
         recent_history=recent_history,
         interview_mode=getattr(ctx, "interview_mode", "normal"),
+        plan_context_block=plan_context_block,
+        retrieved_context=retrieved_context,
     )

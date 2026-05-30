@@ -135,6 +135,79 @@ class AgentMailboxes(BaseModel):
     strategy_to_interviewer: Optional[StrategyToInterviewer] = None
 
 
+class CompetencyNote(BaseModel):
+    """Tracks per-topic evidence gathered about a candidate."""
+    area: str
+    turns_explored: int = 0
+    avg_technical_score: float = 0.0
+    avg_grounding_score: float = 0.0
+    has_strong_evidence: bool = False
+    strong_evidence_excerpt: str = ""
+    recurring_weakness: str = ""
+    is_sufficiently_explored: bool = False
+
+
+class CandidateMemory(BaseModel):
+    """Cross-turn memory of observed candidate patterns."""
+    strong_moments: list[str] = Field(default_factory=list)
+    weak_patterns: list[str] = Field(default_factory=list)
+    vague_patterns: list[str] = Field(default_factory=list)
+    contradictions: list[str] = Field(default_factory=list)
+    overused_phrases: list[str] = Field(default_factory=list)
+    confidence_trend: str = "unknown"   # "improving" | "declining" | "stable" | "unknown"
+    bluffing_incidents: int = 0
+    honest_uncertainty_count: int = 0
+
+
+class InterviewPlan(BaseModel):
+    """
+    Persistent strategic plan maintained across turns.
+    Updated deterministically each turn; LLM reflection every 3 turns.
+    """
+    active_objectives: list[str] = Field(default_factory=list)
+    completed_objectives: list[str] = Field(default_factory=list)
+    competency_notes: list[CompetencyNote] = Field(default_factory=list)
+    candidate_memory: CandidateMemory = Field(default_factory=CandidateMemory)
+    difficulty_trajectory: str = "stable"   # "increasing" | "decreasing" | "stable"
+    target_pressure: float = 0.3            # 0.0 = gentle, 1.0 = maximum pressure
+    current_pressure: float = 0.3
+    turns_since_last_reflection: int = 0
+    last_reflection_notes: str = ""
+    reflection_flags: list[str] = Field(default_factory=list)
+    plan_version: int = 0
+    initialized: bool = False
+
+
+class ConversationalState(BaseModel):
+    """
+    Per-turn state of the interviewer's conversational stance.
+    Updated deterministically after each evaluated turn.
+    """
+    tone: str = "neutral"                       # "warm" | "neutral" | "skeptical" | "direct"
+    pressure_level: float = 0.0                 # 0.0–1.0
+    active_strategy: str = "follow_plan"        # label for current conversational posture
+    angles_attempted: list[str] = Field(default_factory=list)
+    consecutive_weak_turns: int = 0
+    consecutive_strong_turns: int = 0
+    candidate_confidence_read: str = "unknown"  # "confident" | "uncertain" | "guessing" | "unknown"
+
+
+class RetrievalRecord(BaseModel):
+    """
+    Cached web-retrieval result stored in InterviewState.
+    Populated at most once per session by the Strategy Agent retrieval module.
+    """
+    session_id: str
+    company: Optional[str] = None
+    retrieved_topics: list[str] = Field(default_factory=list)
+    summaries: list[str] = Field(default_factory=list)
+    timestamps: list[str] = Field(default_factory=list)
+    sources: list[str] = Field(default_factory=list)
+    compressed_context: str = ""   # ≤120 words, ready to inject into prompts
+    retrieval_attempted: bool = False
+    retrieval_succeeded: bool = False
+
+
 class InterviewState(BaseModel):
     context: ImmutableContext
     turns: list[TurnRecord] = Field(default_factory=list)
@@ -145,6 +218,15 @@ class InterviewState(BaseModel):
     current_question: str = ""
     current_answer: str = ""
     is_complete: bool = False
+    # ── Agentic planning layer (optional — None until init_node runs) ──────────
+    interview_plan: Optional[InterviewPlan] = None
+    conversational_state: Optional[ConversationalState] = None
+    # ── Web retrieval cache (optional — None until first retrieval succeeds) ───
+    retrieved_context: Optional[RetrievalRecord] = None
+    # ── Character persona conditioning (optional — populated at session start) ──
+    # Structured PersonaConditioningBlock dict from persona_retrieval.py.
+    # None when no persona was requested. Injected into every interviewer prompt.
+    character_persona: Optional[dict] = None
 from dataclasses import dataclass
 
 

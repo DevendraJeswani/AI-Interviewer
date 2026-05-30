@@ -1,0 +1,356 @@
+============================================================
+  AI MOCK INTERVIEW COACH — SETUP GUIDE
+  (Read this first. Follow every step in order.)
+============================================================
+
+WHAT YOU ARE BUILDING
+---------------------
+A two-part app:
+  - Backend  = a Python program that runs the AI interview logic
+  - Frontend = a website that runs in your browser
+
+Both need to be running at the same time for the app to work.
+
+
+------------------------------------------------------------
+PART 1 — SET UP THE FOLDER STRUCTURE
+------------------------------------------------------------
+
+After downloading all files, create this exact folder layout
+on your computer. You can do this manually in File Explorer
+or follow the commands below.
+
+Target folder structure:
+
+  interview-coach/
+  │
+  ├── backend/
+  │   ├── api.py
+  │   ├── requirements.txt
+  │   ├── .env                        ← you will create this
+  │   │
+  │   ├── state/
+  │   │   ├── __init__.py             ← empty file
+  │   │   ├── enums.py
+  │   │   ├── models.py
+  │   │   └── defaults.py
+  │   │
+  │   ├── config/
+  │   │   ├── __init__.py             ← empty file
+  │   │   └── settings.py
+  │   │
+  │   ├── prompts/
+  │   │   ├── __init__.py             ← empty file
+  │   │   └── registry.py
+  │   │
+  │   ├── validation/
+  │   │   ├── __init__.py             ← empty file
+  │   │   └── schemas.py
+  │   │
+  │   ├── report/
+  │   │   ├── __init__.py             ← empty file
+  │   │   └── models.py
+  │   │
+  │   ├── agents/
+  │   │   ├── __init__.py             ← empty file
+  │   │   ├── evaluator/
+  │   │   │   ├── __init__.py         ← empty file
+  │   │   │   ├── agent.py
+  │   │   │   └── prompts.py
+  │   │   ├── strategy/
+  │   │   │   ├── __init__.py         ← empty file
+  │   │   │   ├── agent.py
+  │   │   │   └── prompts.py
+  │   │   ├── interviewer/
+  │   │   │   ├── __init__.py         ← empty file
+  │   │   │   ├── agent.py
+  │   │   │   └── prompts.py
+  │   │   └── coach/
+  │   │       ├── __init__.py         ← empty file
+  │   │       ├── agent.py
+  │   │       └── prompts.py
+  │   │
+  │   └── orchestrator/
+  │       ├── __init__.py             ← empty file
+  │       ├── signals.py
+  │       ├── guardrails.py
+  │       ├── edges.py
+  │       ├── nodes.py
+  │       ├── graph.py
+  │       └── session.py
+  │
+  └── frontend/
+      ├── index.html
+      ├── package.json
+      ├── vite.config.js
+      └── src/
+          ├── main.jsx
+          ├── App.jsx
+          └── api/
+              └── client.js
+
+
+HOW TO RENAME THE DOWNLOADED FILES
+-----------------------------------
+The files you downloaded have names like:
+  state__enums.py  →  goes into  backend/state/enums.py
+  ROOT__api.py     →  goes into  backend/api.py
+
+The double underscore (__) shows the folder path.
+ROOT__ means it goes directly in backend/.
+frontend__ means it goes in the frontend/ folder.
+
+Full rename+move list:
+
+  Downloaded name                     →  Where to put it (final name)
+  ─────────────────────────────────────────────────────────────────────
+  ROOT__api.py                        →  backend/api.py
+  ROOT__requirements.txt              →  backend/requirements.txt
+  ROOT__env.example                   →  backend/.env  (rename, remove .example)
+
+  state__enums.py                     →  backend/state/enums.py
+  state__models.py                    →  backend/state/models.py
+  state__defaults.py                  →  backend/state/defaults.py
+
+  config__settings.py                 →  backend/config/settings.py
+  prompts__registry.py                →  backend/prompts/registry.py
+  validation__schemas.py              →  backend/validation/schemas.py
+  report__models.py                   →  backend/report/models.py
+
+  agents__evaluator__agent.py         →  backend/agents/evaluator/agent.py
+  agents__evaluator__prompts.py       →  backend/agents/evaluator/prompts.py
+  agents__strategy__agent.py          →  backend/agents/strategy/agent.py
+  agents__strategy__prompts.py        →  backend/agents/strategy/prompts.py
+  agents__interviewer__agent.py       →  backend/agents/interviewer/agent.py
+  agents__interviewer__prompts.py     →  backend/agents/interviewer/prompts.py
+  agents__coach__agent.py             →  backend/agents/coach/agent.py
+  agents__coach__prompts.py           →  backend/agents/coach/prompts.py
+
+  orchestrator__signals.py            →  backend/orchestrator/signals.py
+  orchestrator__guardrails.py         →  backend/orchestrator/guardrails.py
+  orchestrator__edges.py              →  backend/orchestrator/edges.py
+  orchestrator__nodes.py              →  backend/orchestrator/nodes.py
+  orchestrator__graph.py              →  backend/orchestrator/graph.py
+  orchestrator__session.py            →  backend/orchestrator/session.py
+
+  frontend__index.html                →  frontend/index.html
+  frontend__package.json              →  frontend/package.json
+  frontend__vite.config.js            →  frontend/vite.config.js
+  frontend__main.jsx                  →  frontend/src/main.jsx
+  frontend__App.jsx                   →  frontend/src/App.jsx
+  frontend__api__client.js            →  frontend/src/api/client.js
+
+
+CREATE THE EMPTY __init__.py FILES
+------------------------------------
+Python needs an empty file called __init__.py in every folder.
+Create a new empty text file and save it as __init__.py in:
+
+  backend/
+  backend/state/
+  backend/config/
+  backend/prompts/
+  backend/validation/
+  backend/report/
+  backend/agents/
+  backend/agents/evaluator/
+  backend/agents/strategy/
+  backend/agents/interviewer/
+  backend/agents/coach/
+  backend/orchestrator/
+
+(The file should be completely empty — 0 bytes.)
+
+
+------------------------------------------------------------
+PART 2 — INSTALL THE TOOLS YOU NEED
+------------------------------------------------------------
+
+You need two tools installed on your computer:
+  1. Python (version 3.11 or newer)
+  2. Node.js (version 18 or newer)
+
+CHECK IF YOU ALREADY HAVE THEM:
+Open a terminal (Command Prompt on Windows, Terminal on Mac/Linux) and type:
+
+  python --version
+  node --version
+
+If you see version numbers, you are good.
+If you see "command not found", install them:
+  Python  →  https://www.python.org/downloads/
+  Node.js →  https://nodejs.org/  (download the LTS version)
+
+
+------------------------------------------------------------
+PART 3 — ADD YOUR API KEY
+------------------------------------------------------------
+
+This app uses Claude AI to power the interview.
+You need a free Anthropic API key.
+
+Step 1: Go to https://console.anthropic.com
+Step 2: Sign up or log in
+Step 3: Click "API Keys" → "Create Key"
+Step 4: Copy the key (it starts with sk-ant-)
+
+Step 5: Open the file  backend/.env  in any text editor (Notepad is fine)
+        It should contain this one line:
+          ANTHROPIC_API_KEY=your_anthropic_api_key_here
+
+Step 6: Replace  your_anthropic_api_key_here  with your actual key.
+        Example:
+          ANTHROPIC_API_KEY=sk-ant-abc123...
+
+Step 7: Save the file.
+
+IMPORTANT: Never share this .env file with anyone.
+
+
+------------------------------------------------------------
+PART 4 — START THE BACKEND (Terminal 1)
+------------------------------------------------------------
+
+Open a terminal window.
+
+Step 1: Navigate to the backend folder:
+  Windows:   cd C:\path\to\interview-coach\backend
+  Mac/Linux: cd /path/to/interview-coach/backend
+
+Step 2: Install Python packages (do this only the first time):
+  pip install -r requirements.txt
+
+  Wait for it to finish. It will download several packages.
+  This might take 1-2 minutes.
+
+Step 3: Load your API key:
+  Windows (Command Prompt):
+    set ANTHROPIC_API_KEY=sk-ant-your-actual-key-here
+    (replace with your real key from the .env file)
+
+  Mac/Linux:
+    export $(cat .env | xargs)
+    (this reads the .env file automatically)
+
+Step 4: Start the backend server:
+  uvicorn api:app --reload --port 8000
+
+You should see output like:
+  INFO:     Uvicorn running on http://127.0.0.1:8000
+  INFO:     Application startup complete.
+
+Leave this terminal window open. Do NOT close it.
+
+✓ Test it works: Open your browser and go to:
+  http://localhost:8000/health
+  You should see: {"status":"ok","active_sessions":0}
+
+
+------------------------------------------------------------
+PART 5 — START THE FRONTEND (Terminal 2)
+------------------------------------------------------------
+
+Open a SECOND terminal window (keep the first one open).
+
+Step 1: Navigate to the frontend folder:
+  Windows:   cd C:\path\to\interview-coach\frontend
+  Mac/Linux: cd /path/to/interview-coach/frontend
+
+Step 2: Install JavaScript packages (do this only the first time):
+  npm install
+
+  Wait for it to finish. This might take 30-60 seconds.
+
+Step 3: Start the frontend:
+  npm run dev
+
+You should see:
+  VITE v6.x.x  ready in xxx ms
+  ➜  Local:   http://localhost:5173/
+
+Leave this terminal window open too.
+
+
+------------------------------------------------------------
+PART 6 — USE THE APP
+------------------------------------------------------------
+
+Open your browser and go to:
+  http://localhost:5173
+
+You will see the Interview Coach setup screen.
+
+HOW TO DO AN INTERVIEW:
+
+1. SETUP SCREEN
+   - Role: type the job you are interviewing for
+     Example: "Senior Backend Engineer"
+   - Focus area: the technical area
+     Example: "distributed systems"
+   - Your background: a sentence about your experience
+     Example: "3 years Python, worked on REST APIs"
+   - Difficulty: choose Junior / Mid / Senior / Staff
+   - Topics: click to select what topics to cover
+   - Click "Begin interview →"
+
+2. INTERVIEW SCREEN
+   - The AI interviewer will introduce itself and ask
+     a warm-up question
+   - Type your answer in the box at the bottom
+   - Press Enter (or click Send) to submit
+   - The AI will ask follow-up questions, probe deeper,
+     or move to new topics based on your answers
+   - The interview runs for ~6 questions
+
+3. REPORT SCREEN
+   - After the interview ends, the report loads automatically
+   - You will see:
+     → Overall assessment paragraph
+     → Score bars (Technical Depth, Communication, etc.)
+     → Strengths with evidence from your actual answers
+     → Growth areas with specific suggestions
+     → Topic coverage grid
+     → Practice recommendations
+   - Click any blue "Turn N" chip to jump to that
+     part of the transcript
+
+------------------------------------------------------------
+PART 7 — STOPPING THE APP
+------------------------------------------------------------
+
+In each terminal window, press:  Ctrl + C
+
+This stops the servers. Your interview data is not saved
+between sessions (this is by design for the demo).
+
+
+------------------------------------------------------------
+TROUBLESHOOTING
+------------------------------------------------------------
+
+PROBLEM: "uvicorn: command not found"
+FIX: Run  pip install uvicorn  then try again
+
+PROBLEM: "npm: command not found"
+FIX: Install Node.js from https://nodejs.org and restart terminal
+
+PROBLEM: Browser shows "Could not connect" error
+FIX: Make sure the backend is running (Terminal 1 shows no errors)
+     Go to http://localhost:8000/health — should show OK
+
+PROBLEM: "ANTHROPIC_API_KEY not set" or API errors
+FIX: Make sure you set the API key in Terminal 1
+     Windows: set ANTHROPIC_API_KEY=sk-ant-...
+     Mac/Linux: export ANTHROPIC_API_KEY=sk-ant-...
+
+PROBLEM: Python import errors when starting backend
+FIX: Make sure all __init__.py files exist in every folder
+     Make sure you are running uvicorn from inside backend/
+
+PROBLEM: Port 8000 already in use
+FIX: Change the port:  uvicorn api:app --reload --port 8001
+     Then edit frontend/vite.config.js and change 8000 to 8001
+
+============================================================
+  That's it! You should now have a working AI Interview Coach.
+============================================================
